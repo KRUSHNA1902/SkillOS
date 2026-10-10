@@ -1,0 +1,14 @@
+{
+  "name": "skillos",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "code/client",
+    "code/server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=skillos-client",
+    "build": "npm run build --workspace=skillos-client",
+    "server": "npm run dev --workspace=skillos-server"
+  }
+}

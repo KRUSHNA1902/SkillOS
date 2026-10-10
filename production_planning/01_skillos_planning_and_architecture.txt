@@ -1,0 +1,231 @@
+================================================================================
+SKILLOS — PERSONAL LEARNING & PROGRESS MANAGEMENT PLATFORM
+PROJECT PLANNING & EVOLUTION LOG [DOCUMENT: 01]
+File: 01_skillos_planning_and_architecture.txt
+Created: 2026-10-10
+Status: Planning Phase
+================================================================================
+
+================================================================================
+VERSION TRACKING & CHANGELOG
+================================================================================
+[x] 01 — Baseline Planning, 3-Part Layout & Technical Architecture (CURRENT)
+[ ] 02 — (Reserved for next iteration / feedback adjustments)
+[ ] 03 — (Reserved for subsequent execution / milestone updates)
+
+--------------------------------------------------------------------------------
+NEW & EXCLUSIVE IN THIS VERSION (01)
+--------------------------------------------------------------------------------
+- Initial project blueprint and architecture specification.
+- Three-part desktop layout definition (Nav + Main Workspace + Persistent Right Calendar).
+- Core philosophy: Connecting planned learning, actual daily study, and completed topics.
+- Complete data models (Areas, Paths, Modules, Topics, Study Sessions, Practice Attempts, Goals, Notes).
+- Topic state machine with 7 distinct progression statuses.
+- Right-hand calendar specifications for historical daily tracking and session review.
+- Supabase PostgreSQL schema design and offline-first fallback strategy.
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. EXECUTIVE SUMMARY & CORE PHILOSOPHY
+================================================================================
+SkillOS is a centralised personal learning and progress management platform designed
+to overcome the shortcomings of conventional to-do lists.
+
+A conventional to-do list loses historical context and conflates planning with mastery.
+SkillOS explicitly connects three pillars:
+  1. What you PLAN to learn (Hierarchical roadmaps, modules, topics).
+  2. What you ACTUALLY study (Dated daily sessions, durations, session notes, outcomes).
+  3. What you COMPLETE each day (Topic status updates, practice results, historical calendar logs).
+
+Three Core Distinctions:
+  - Planned Work vs Completed Work: A scheduled task does not count as completed until
+    explicitly marked complete and verified.
+  - Activity vs Mastery: Recording practice sessions is distinct from topic mastery.
+    Reading a concept != solving exercises != mastering the domain.
+  - Current Progress vs Historical Progress: The dashboard shows live completion rates,
+    while the calendar preserves immutable historical logs of what occurred on each date.
+
+
+================================================================================
+2. OVERALL APPLICATION LAYOUT (THREE-PART ARCHITECTURE)
+================================================================================
+The desktop interface is divided into a three-part responsive layout:
+
++--------------------+------------------------------------------+----------------------+
+|  LEFT NAVIGATION   |           MAIN WORKSPACE CANVAS          |  PERSISTENT CALENDAR |
+|  - Overview        |                                          |  (Right panel)       |
+|  - Learning Paths  |  [Active Module View]                    |                      |
+|  - Daily Log       |  - Dynamic cards & stats                 |  - Month navigation  |
+|  - Practice Hub    |  - Hierarchical topic tracker            |  - Activity dots     |
+|  - Knowledge Base  |  - Detailed session logger               |  - Day inspector     |
+|  - Analytics       |  - Analytics & charts                    |  - Daily timeline    |
+|  - Settings        |                                          |  - "+ Log this day"  |
++--------------------+------------------------------------------+----------------------+
+
+Desktop Grid:
+  - Left navigation & controls: Clean, collapsible sidebar for module switching.
+  - Center/Main area (1fr): Primary workspace for dashboard, path editing, logging, notes.
+  - Right panel (~280-320px): Persistent historical activity calendar.
+
+Mobile / Small Screen Adaptability:
+  - On screens < 768px, the layout shifts to a single column.
+  - The calendar collapses into an accessible slide-over drawer or a dedicated tab,
+    ensuring mobile users can inspect dates without compromising screen real estate.
+
+
+================================================================================
+3. CORE MODULE SPECIFICATIONS
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE A: DASHBOARD
+--------------------------------------------------------------------------------
+The primary screen after launching SkillOS, providing high-density summary metrics:
+- Metric Cards:
+  * Total Learning Paths count
+  * Topics Completed
+  * Topics In Progress
+  * Total Minutes / Hours Logged
+  * Weekly Study Hours
+  * Active Streak & Targets
+- Major Learning Area Progress Bars:
+  * SQL & Databases (e.g., Queries, Joins, Aggregation, Subqueries, CTEs, Window Functions)
+  * Python & Data Analytics (e.g., Fundamentals, Pandas, Data Cleaning, EDA)
+  * Power BI (e.g., Data Modelling, DAX, Interactive Dashboards)
+  * Finance & Financial Markets (e.g., Financial Statements, Ratios, Valuation, Industry Analysis)
+  * AI & Cloud (e.g., AI tools, Cloud Architecture, Automation)
+  * Projects (e.g., Portfolio builds, End-to-end applications)
+- Customizability:
+  * Fully editable categories (Add, Rename, Reorder, Delete).
+
+--------------------------------------------------------------------------------
+MODULE B: LEARNING PATHS & TOPIC TRACKING
+--------------------------------------------------------------------------------
+Hierarchical knowledge structure:
+  Learning Area  -->  Learning Path  -->  Module  -->  Topic  -->  Practice Session
+
+Topic Status Progression (7 Distinct States):
+  1. Not started
+  2. In progress
+  3. Practised
+  4. Completed
+  5. Needs revision
+  6. Mastered
+  7. Blocked
+
+Topic Metadata Tracked:
+  - Topic Title & Description
+  - Start Date, Target Completion Date, Actual Completion Date
+  - Estimated Study Time vs Actual Study Time (minutes)
+  - Notes & Associated Exercises
+
+Automated Progress Calculation:
+  Completion Percentage = (Completed Topics / Total Topics) * 100
+  (Calculated automatically per path, module, and subject area; no manual percentage inputs).
+
+--------------------------------------------------------------------------------
+MODULE C: DAILY LEARNING LOG
+--------------------------------------------------------------------------------
+Every learning session creates an immutable dated record:
+Fields:
+  - Date (e.g., 2026-10-10)
+  - Subject / Category (e.g., SQL & Databases)
+  - Activity / Topic Title (e.g., Practised GROUP BY and HAVING)
+  - Activity Type (Practice, Reading/Theory, Project, Video Tutorial, Revision, Assessment)
+  - Duration (minutes)
+  - Status (Practised, Completed, In progress, Reviewed, Blocked)
+  - Outcome & Notes (e.g., "Completed 5 queries; need to revise aggregate functions")
+
+Capability:
+  - Multiple entries per day supported.
+  - Directly associate entries with specific learning paths and topics.
+
+--------------------------------------------------------------------------------
+MODULE D: PERSISTENT RIGHT-HAND CALENDAR
+--------------------------------------------------------------------------------
+Dedicated right-hand panel for historical tracking:
+- Month view with prev/next navigation.
+- Activity dots/markers on days with recorded sessions.
+- Clear distinction between active study days and unlogged days.
+  (Note: An unlogged date indicates "no activity recorded", not proof that no learning occurred).
+- Date Inspector: Clicking any date displays:
+  * Selected date heading
+  * Timeline of all sessions logged on that day
+  * Total study duration and topics covered
+  * Notes and outcomes recorded
+- Direct Action: "+ Log this day" pre-selects the date in the session logger.
+- Filtering by subject and activity type.
+
+--------------------------------------------------------------------------------
+MODULE E: PRACTICE & ASSESSMENT TRACKING
+--------------------------------------------------------------------------------
+Specialized module for coding and problem solving (SQL, Python, Financial Modelling):
+- Records: Question / Problem, Subject, Difficulty (Easy / Medium / Hard), Attempt Date.
+- Outcome: Passed / Partial / Failed.
+- Mistakes logged & Solution captured.
+- "Needs Revisit" toggle for spaced repetition.
+- Next Action recommendation (e.g., "Solve 5 more questions", "Review window functions").
+
+--------------------------------------------------------------------------------
+MODULE F: GOALS & PLANNING
+--------------------------------------------------------------------------------
+- Timeframes: Daily, Weekly, Monthly, and Long-Term Targets.
+- Target vs. Actual comparison (e.g., Target: 5 hrs SQL & 3 topics; Actual: 3.5 hrs & 2 topics).
+- Missed targets remain visible for honest retrospective review.
+
+--------------------------------------------------------------------------------
+MODULE G: KNOWLEDGE LIBRARY & NOTES
+--------------------------------------------------------------------------------
+- Markdown notes, cheatsheets, formulas, and references linked to subjects and topics.
+- Code snippet viewer with copy support and language tags.
+- Tag-based filtering and instant search.
+
+--------------------------------------------------------------------------------
+MODULE H: ANALYTICS & REPORTS
+--------------------------------------------------------------------------------
+- Line / Area charts: Study hours over time (past 7 / 30 / 90 days).
+- Bar charts: Time distribution across subjects.
+- Calendar Heatmap: GitHub-style contribution density grid.
+- Time vs. Mastery correlation analysis.
+
+
+================================================================================
+4. TECHNICAL STACK & ARCHITECTURE
+================================================================================
+- Frontend Framework: React 18/19 + Vite + TypeScript.
+- Styling: Tailwind CSS + Lucide React icons (high-density dashboard aesthetic).
+- Charting: Recharts (Progress trends, subject comparison bar charts, analytics).
+- Calendar: Custom responsive React calendar component.
+- Storage & Backend:
+  * Phase 1: LocalStorage / IndexedDB reactive engine with rich pre-seeded data.
+  * Phase 2: PostgreSQL on Supabase with Row Level Security (RLS) policies.
+  * Seamless online/offline fallback.
+
+
+================================================================================
+5. DATABASE SCHEMA DESIGN (POSTGRESQL / SUPABASE)
+================================================================================
+Core Tables:
+  1. `skillos_learning_areas` (id, user_id, name, description, color, order, created_at)
+  2. `skillos_learning_paths` (id, user_id, area_id, title, description, target_date, created_at)
+  3. `skillos_modules` (id, user_id, path_id, title, order, created_at)
+  4. `skillos_topics` (id, user_id, module_id, path_id, area_id, title, status, estimated_mins, actual_mins, target_date, completed_date, notes)
+  5. `skillos_study_sessions` (id, user_id, date, area_id, topic_id, title, category, activity_type, duration_mins, status, notes)
+  6. `skillos_practice_attempts` (id, user_id, topic_id, category, question, difficulty, attempt_date, result, mistakes, solution, needs_revisit, next_action)
+  7. `skillos_goals` (id, user_id, type, title, target_mins, target_topics, start_date, end_date, is_completed)
+  8. `skillos_knowledge_notes` (id, user_id, topic_id, category, title, tags, content, code_snippet, updated_at)
+
+
+================================================================================
+6. INITIAL RELEASE ROADMAP (MILESTONES)
+================================================================================
+Milestone 1: Three-part layout, navigation, and live dashboard metrics.
+Milestone 2: Hierarchical learning paths & topics with automatic progress calculation.
+Milestone 3: Daily learning session logger & right-hand persistent calendar inspector.
+Milestone 4: Practice problem tracker & Knowledge library notes.
+Milestone 5: Analytics dashboard & Supabase sync layer.
+
+================================================================================
+END OF DOCUMENT 01
+================================================================================
