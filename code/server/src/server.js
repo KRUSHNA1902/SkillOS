@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
@@ -15,6 +16,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+// Security Headers: Protection against clickjacking, sniffing, and header exposure
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
 app.use(cors({ 

@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -58,7 +59,7 @@ const clearCookies = (res) => {
 };
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { email, password, fullName, phone } = req.body;
   if (!email || !password || !fullName) {
     return res.status(400).json({ error: 'Email, password, and Full Name are required' });
@@ -96,7 +97,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
