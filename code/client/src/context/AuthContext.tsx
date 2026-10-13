@@ -30,7 +30,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const DEV_STORAGE_KEY = 'skillos_dev_user';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -54,8 +54,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Check if user is logged in on mount
-    const fetchUser = async () => {
+    const initAuth = async () => {
+      // 1. Check if OAuth callback tokens are in URL hash (e.g. from Google sign-in redirect)
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token=')) {
+        try {
+          const params = new URLSearchParams(hash.substring(1));
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+          if (access_token) {
+            const response = await fetch(`${API_BASE_URL}/api/auth/session`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ access_token, refresh_token }),
+              credentials: 'include'
+            });
+            if (response.ok) {
+              const data = await response.json();
+              window.history.replaceState(null, '', window.location.pathname);
+              setUser(data.user);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Error handling OAuth callback:', err);
+        }
+      }
+
+      // 2. Otherwise check session via /api/auth/me cookie
       try {
         const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           credentials: 'include'
@@ -78,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    fetchUser();
+    initAuth();
   }, []);
 
   const updateUser = (updatedData: Partial<User>) => {

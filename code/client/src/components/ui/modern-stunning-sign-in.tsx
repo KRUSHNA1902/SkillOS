@@ -38,6 +38,7 @@ const SignIn1: React.FC<SignInProps> = ({
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
   const [error, setError] = React.useState("");
+  const [successMessage, setSuccessMessage] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const validateEmail = (val: string) => {
@@ -47,6 +48,7 @@ const SignIn1: React.FC<SignInProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     if (isSignUp) {
       if (!fullName || !email || !password || !confirmPassword) {
@@ -81,7 +83,7 @@ const SignIn1: React.FC<SignInProps> = ({
       : { email, password };
     
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,12 +97,20 @@ const SignIn1: React.FC<SignInProps> = ({
         throw new Error(data.error || 'Authentication failed');
       }
 
-      // Supabase might require email confirmation for sign-up depending on settings.
-      if (!data.user && isSignUp) {
-         alert("Registration successful! Please check your email to verify.");
-         setIsSignUp(false);
+      if (isSignUp) {
+        // If Supabase required email confirmation, session is null/requiresConfirmation is true
+        if (data.requiresConfirmation || !data.session) {
+          setSuccessMessage(
+            data.message || `Account created! We've sent a confirmation email to ${email}. Please confirm your email before signing in.`
+          );
+          setIsSignUp(false);
+          setPassword("");
+          setConfirmPassword("");
+        } else {
+          setUser(data.user);
+        }
       } else {
-         setUser(data.user);
+        setUser(data.user);
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
@@ -109,8 +119,27 @@ const SignIn1: React.FC<SignInProps> = ({
     }
   };
 
-  const handleGoogleClick = () => {
-    alert("Google Sign-In not implemented in this demo.");
+  const handleGoogleClick = async () => {
+    setError("");
+    setSuccessMessage("");
+    setIsLoading(true);
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_BASE_URL}/api/auth/oauth/google`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initiate Google sign-in');
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google Sign-In is unavailable. Check Supabase credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDevBypass = () => {
@@ -265,8 +294,14 @@ const SignIn1: React.FC<SignInProps> = ({
               </>
             )}
 
+            {successMessage && (
+              <div className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-left font-medium leading-relaxed animate-fadeIn">
+                {successMessage}
+              </div>
+            )}
+
             {error && (
-              <div className="text-sm text-destructive text-left font-medium animate-fadeIn">
+              <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-xl text-left font-medium leading-relaxed animate-fadeIn">
                 {error}
               </div>
             )}
@@ -339,6 +374,7 @@ const SignIn1: React.FC<SignInProps> = ({
                   onClick={() => {
                     setIsSignUp(!isSignUp);
                     setError("");
+                    setSuccessMessage("");
                   }}
                   className="underline text-foreground/80 hover:text-foreground transition focus:outline-none"
                 >

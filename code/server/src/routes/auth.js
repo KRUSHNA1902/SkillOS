@@ -4,6 +4,27 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+/**
+ * Normalizes Supabase user object into SkillOS User model
+ */
+export const formatUser = (supabaseUser) => {
+  if (!supabaseUser) return null;
+  const metadata = supabaseUser.user_metadata || {};
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email,
+    fullName: metadata.full_name || metadata.name || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'Learner'),
+    role: metadata.role || 'Member',
+    department: metadata.department || '',
+    phone: metadata.phone || '',
+    bio: metadata.bio || '',
+    avatarUrl: metadata.avatar_url || metadata.picture || '',
+    skills: metadata.skills || [],
+    emailConfirmed: !!(supabaseUser.email_confirmed_at || supabaseUser.confirmed_at),
+    user_metadata: metadata,
+  };
+};
+
 const setCookies = (res, access_token, refresh_token) => {
   const isProd = process.env.NODE_ENV === 'production';
   res.cookie('access_token', access_token, {
@@ -12,12 +33,14 @@ const setCookies = (res, access_token, refresh_token) => {
     sameSite: 'lax',
     maxAge: 3600000 // 1 hour
   });
-  res.cookie('refresh_token', refresh_token, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 3600000 // 7 days
-  });
+  if (refresh_token) {
+    res.cookie('refresh_token', refresh_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 3600000 // 7 days
+    });
+  }
 };
 
 const clearCookies = (res) => {
@@ -56,12 +79,20 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 
-  // If Supabase is configured to require email confirmation, session might be null.
-  if (data.session) {
+  const hasSession = !!data.session;
+  if (hasSession) {
     setCookies(res, data.session.access_token, data.session.refresh_token);
   }
 
-  return res.json({ user: data.user, message: 'Registration successful' });
+  const formattedUser = formatUser(data.user);
+  return res.json({ 
+    user: formattedUser, 
+    session: hasSession,
+    requiresConfirmation: !hasSession,
+    message: hasSession 
+      ? 'Registration successful' 
+      : 'Account created! Please check your email inbox to confirm your account before logging in.'
+  });
 });
 
 // Login
@@ -74,11 +105,63 @@ router.post('/login', async (req, res) => {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   
   if (error) {
+    if (error.message?.toLowerCase().includes('email not confirmed')) {
+      return res.status(401).json({ 
+        error: 'Email not confirmed. Please check your inbox or disable "Confirm email" in your Supabase dashboard.' 
+      });
+    }
     return res.status(401).json({ error: error.message });
   }
   
-  setCookies(res, data.session.access_token, data.session.refresh_token);
-  return res.json({ user: data.user });
+  if (data.session) {
+    setCookies(res, data.session.access_token, data.session.refresh_token);
+  }
+
+  return res.json({ 
+    user: formatUser(data.user), 
+    session: true 
+  });
+});
+
+// Initiate Google OAuth flow
+router.get('/oauth/google', async (req, res) => {
+  try {
+    const clientUrl = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:5173';
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${clientUrl}/auth/callback`,
+      }
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.json({ url: data.url });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to initialize Google OAuth' });
+  }
+});
+
+// Set session from OAuth callback tokens
+router.post('/session', async (req, res) => {
+  try {
+    const { access_token, refresh_token } = req.body;
+    if (!access_token) {
+      return res.status(400).json({ error: 'access_token is required' });
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(access_token);
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid authentication token' });
+    }
+
+    setCookies(res, access_token, refresh_token || '');
+    return res.json({ user: formatUser(user), session: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to process session' });
+  }
 });
 
 // Logout
@@ -90,7 +173,7 @@ router.post('/logout', (req, res) => {
 // Get current user (protected route)
 router.get('/me', requireAuth, (req, res) => {
   // requireAuth middleware attaches req.user
-  return res.json({ user: req.user });
+  return res.json({ user: formatUser(req.user) });
 });
 
 export default router;

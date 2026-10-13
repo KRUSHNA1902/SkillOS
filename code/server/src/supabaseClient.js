@@ -1,7 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Explicitly load code/server/.env relative to this file's location
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config(); // fallback to default cwd
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   console.warn('[Warning] Missing SUPABASE_URL or SUPABASE_ANON_KEY in environment variables.');

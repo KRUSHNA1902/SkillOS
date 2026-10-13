@@ -7,8 +7,13 @@
     "code/server"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=skillos-client",
+    "dev": "concurrently -n \"client,server\" -c \"cyan,magenta\" \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "npm run dev --workspace=skillos-client",
+    "dev:server": "npm run dev --workspace=skillos-server",
     "build": "npm run build --workspace=skillos-client",
     "server": "npm run dev --workspace=skillos-server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
   }
 }
