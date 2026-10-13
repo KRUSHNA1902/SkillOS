@@ -1,0 +1,236 @@
+================================================================================
+SKILLOS — PERSONAL LEARNING & PROGRESS MANAGEMENT PLATFORM
+PROJECT PLANNING & EVOLUTION LOG [DOCUMENT: 05]
+File: 05_data_saving_storage_and_viewing_architecture.txt
+Created: 2026-10-13
+Status: Data Persistence, Storage & Viewing Architecture Phase
+================================================================================
+
+================================================================================
+VERSION TRACKING & CHANGELOG
+================================================================================
+[x] 01 — Baseline Planning, 3-Part Layout & Core Modules Specification
+[x] 02 — Deep Technical Architecture & Stack Mapping
+[x] 03 — Draggable Widget Grid Integration
+[x] 04 — Gemini AI Engine, Data Project Curriculum & Overall System Synthesis
+[x] 05 — Data Saving, Storage, and Viewing Architecture & Implementation (CURRENT)
+
+--------------------------------------------------------------------------------
+--- NEW & EXCLUSIVE IN THIS VERSION (05) ---
+--------------------------------------------------------------------------------
+- Full specification of the 3 Data Pillars: How Data is Saved, Stored, and Viewed.
+- 8 Core Normalized Relational Tables mapped in PostgreSQL / Supabase with Row Level Security (RLS):
+  1. skillos_learning_areas
+  2. skillos_learning_paths
+  3. skillos_modules
+  4. skillos_topics (with 7-state progression enum)
+  5. skillos_study_sessions (with activity types and date ledger)
+  6. skillos_practice_attempts (with mistake logs and spaced repetition)
+  7. skillos_goals (with target vs actual velocity)
+  8. skillos_knowledge_notes (with markdown and syntax-highlighted code snippets)
+- Hybrid Offline-First Client Architecture:
+  * Zustand reactive store (useDataStore) with optimistic UI updates (~0ms latency).
+  * Browser local cache (IndexedDB / LocalStorage) with automatic background sync to Supabase.
+- Concrete UI Viewing Channels:
+  * High-density executive Dashboard with track completion progress bars.
+  * Hierarchical Learning Paths accordion tree with inline 7-state topic pills.
+  * Chronological Daily Study Log stream.
+  * Persistent Right-Hand Calendar with activity dots and Day Inspector.
+  * Spaced-repetition Practice Hub and Markdown Knowledge Base.
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. EXECUTIVE SUMMARY: THE DATA LIFECYCLE IN SKILLOS
+================================================================================
+
+SkillOS connects three core learning pillars:
+  1. What you PLAN to learn: Hierarchical roadmaps (Areas -> Paths -> Modules -> Topics).
+  2. What you ACTUALLY study: Dated daily sessions with duration, category, and outcome logs.
+  3. What you COMPLETE: 7-state topic progression (Not Started -> In Progress -> Practised -> Completed -> Needs Revision -> Mastered -> Blocked).
+
+To make the application instantaneous and reliable, the data architecture implements:
+  - Optimistic Local Mutations: Every save action updates the UI and local cache instantly.
+  - Relational Integrity: Normalised PostgreSQL schema on Supabase enforces consistency across trees and logs.
+  - Multi-Surface Viewing: Data entered in any module immediately synchronises across the Dashboard, the Topic Trees, the Daily Log, and the Persistent Right Calendar.
+
+
+================================================================================
+2. HOW THE DATA WILL BE STORED (STORAGE ARCHITECTURE)
+================================================================================
+
+The storage engine consists of 8 core tables in PostgreSQL on Supabase:
+
+1. skillos_learning_areas:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - name: TEXT NOT NULL (e.g., 'SQL & Databases', 'Python & Analytics')
+   - description: TEXT
+   - color: TEXT NOT NULL (Hex color code e.g. '#3B82F6')
+   - icon: TEXT NOT NULL (Lucide icon identifier)
+   - sort_order: INT DEFAULT 0
+   - created_at: TIMESTAMPTZ DEFAULT now()
+
+2. skillos_learning_paths:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - area_id: UUID REFERENCES skillos_learning_areas(id) ON DELETE CASCADE
+   - title: TEXT NOT NULL (e.g., 'Advanced SQL Analytics')
+   - description: TEXT
+   - target_date: DATE
+   - sort_order: INT DEFAULT 0
+   - created_at: TIMESTAMPTZ DEFAULT now()
+
+3. skillos_modules:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - path_id: UUID REFERENCES skillos_learning_paths(id) ON DELETE CASCADE
+   - title: TEXT NOT NULL (e.g., 'Module 1: Window Functions & Analytics')
+   - description: TEXT
+   - sort_order: INT DEFAULT 0
+   - created_at: TIMESTAMPTZ DEFAULT now()
+
+4. skillos_topics:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - module_id: UUID REFERENCES skillos_modules(id) ON DELETE CASCADE
+   - path_id: UUID REFERENCES skillos_learning_paths(id) ON DELETE SET NULL
+   - area_id: UUID REFERENCES skillos_learning_areas(id) ON DELETE SET NULL
+   - title: TEXT NOT NULL
+   - description: TEXT
+   - status: TEXT NOT NULL CHECK (status IN ('not_started', 'in_progress', 'practised', 'completed', 'needs_revision', 'mastered', 'blocked'))
+   - estimated_mins: INT DEFAULT 60
+   - actual_mins: INT DEFAULT 0
+   - target_date: DATE
+   - completed_date: DATE
+   - notes: TEXT
+   - created_at: TIMESTAMPTZ DEFAULT now()
+   - updated_at: TIMESTAMPTZ DEFAULT now()
+
+5. skillos_study_sessions:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - area_id: UUID REFERENCES skillos_learning_areas(id) ON DELETE SET NULL
+   - topic_id: UUID REFERENCES skillos_topics(id) ON DELETE SET NULL
+   - session_date: DATE NOT NULL
+   - title: TEXT NOT NULL
+   - category: TEXT NOT NULL
+   - activity_type: TEXT NOT NULL CHECK (activity_type IN ('practice', 'theory', 'project', 'video', 'revision', 'assessment'))
+   - duration_mins: INT NOT NULL
+   - status: TEXT NOT NULL
+   - outcome_notes: TEXT
+   - created_at: TIMESTAMPTZ DEFAULT now()
+
+6. skillos_practice_attempts:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - topic_id: UUID REFERENCES skillos_topics(id) ON DELETE SET NULL
+   - category: TEXT NOT NULL
+   - question: TEXT NOT NULL
+   - difficulty: TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard'))
+   - attempt_date: DATE NOT NULL
+   - result: TEXT NOT NULL CHECK (result IN ('passed', 'partial', 'failed'))
+   - mistakes: TEXT
+   - solution: TEXT
+   - needs_revisit: BOOLEAN DEFAULT false
+   - next_action: TEXT
+   - created_at: TIMESTAMPTZ DEFAULT now()
+
+7. skillos_goals:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - area_id: UUID REFERENCES skillos_learning_areas(id) ON DELETE SET NULL
+   - timeframe_type: TEXT NOT NULL CHECK (timeframe_type IN ('daily', 'weekly', 'monthly', 'custom'))
+   - title: TEXT NOT NULL
+   - target_mins: INT NOT NULL
+   - target_topics: INT NOT NULL
+   - start_date: DATE NOT NULL
+   - end_date: DATE NOT NULL
+   - is_completed: BOOLEAN DEFAULT false
+   - created_at: TIMESTAMPTZ DEFAULT now()
+
+8. skillos_knowledge_notes:
+   - id: UUID PRIMARY KEY
+   - user_id: UUID REFERENCES auth.users(id) ON DELETE CASCADE
+   - topic_id: UUID REFERENCES skillos_topics(id) ON DELETE SET NULL
+   - area_id: UUID REFERENCES skillos_learning_areas(id) ON DELETE SET NULL
+   - title: TEXT NOT NULL
+   - tags: TEXT[] DEFAULT '{}'
+   - content_markdown: TEXT NOT NULL
+   - code_snippet: TEXT
+   - language: TEXT
+   - is_pinned: BOOLEAN DEFAULT false
+   - created_at: TIMESTAMPTZ DEFAULT now()
+   - updated_at: TIMESTAMPTZ DEFAULT now()
+
+
+================================================================================
+3. HOW THE DATA WILL BE SAVED (INGESTION & MUTATION LAYER)
+================================================================================
+
+A. Reactive Zustand State Store (useDataStore.ts):
+- Single source of truth in client memory.
+- Instant Optimistic Updates: When a user changes a topic status or adds a session, the UI updates with zero latency.
+- Automatic Progress Recalculation: Module, Path, and Area completion percentages are derived automatically:
+    Progress % = (Completed Topics / Total Topics) * 100
+- Local Storage Persistence: State automatically persists to localStorage / IndexedDB so data survives page refresh, offline usage, and dev bypass mode.
+- Supabase Sync Queue: Online writes automatically flush to Supabase PostgreSQL using the authenticated user JWT.
+
+B. Input Entry Points:
+1. Persistent Right Calendar:
+   - Clicking any date displays a "+ Log this day" action that pre-fills the session date.
+2. Learning Paths View:
+   - Dropdown status pill triggers instant topic progression across the 7 states.
+   - Quick Topic Add creates atomic items inside the selected module.
+3. Practice Hub:
+   - Problem logger records prompt, difficulty, mistakes, solution, and spaced-repetition flags.
+4. Knowledge Library:
+   - Debounced auto-save markdown editor with syntax-highlighted code snippet inputs.
+5. AI Generated Roadmaps:
+   - Gemini generates multi-week structured syllabi that the user can import in one click into the database.
+
+
+================================================================================
+4. HOW THE DATA WILL BE VIEWED (PRESENTATION & WORKSPACE CANVAS)
+================================================================================
+
+A. The Three-Part Shell:
+- Left Navigation Sidebar: Shows live counter badges for active topics, pending practice, and study streaks.
+- Main Workspace Canvas: Renders dynamic views (Dashboard, Learning Paths, Daily Log, Practice Hub, Notes, AI Assistant).
+- Persistent Right-Hand Calendar: Highlights historical study activity with date markers and provides an instant Day Inspector.
+
+B. Detailed Workspace Views:
+1. Dashboard View:
+   - High-density KPI cards: Total Paths, Completed Topics, In-Progress Topics, Total Study Hours, Weekly Velocity, Active Streak.
+   - Track Progress Bars for all 6 core disciplines (SQL, Python, Power BI, Finance, AI, Projects).
+   - Recent activity stream.
+2. Learning Paths View:
+   - Collapsible hierarchical tree (Area -> Path -> Module -> Topic).
+   - Interactive 7-state topic status pills.
+   - Real-time progress bar per module and path.
+3. Daily Study Log View:
+   - Chronological ledger grouped by date with category badges and duration tags.
+   - Filterable by Area, Activity Type, or Date.
+4. Persistent Right Calendar:
+   - Monthly calendar with activity dots indicating logged study sessions.
+   - Day Inspector drawer showing all sessions for any clicked day.
+5. Practice & Assessment Hub:
+   - Filterable problem cards (Easy/Med/Hard, Pass/Partial/Fail).
+   - "Needs Revisit" spaced repetition drawer.
+6. Knowledge Library:
+   - Markdown viewer and syntax-highlighted code snippet viewer with instant search.
+
+
+================================================================================
+5. IMPLEMENTATION MILESTONES
+================================================================================
+Milestone 1: Supabase DDL execution (all 8 tables, indexes, constraints, RLS policies).
+Milestone 2: TypeScript data models and Zustand store (useDataStore.ts) with rich pre-seeded data.
+Milestone 3: Dynamic Dashboard integration (connecting store data to dashboard metrics and progress bars).
+Milestone 4: Learning Paths & Topic Progression tree view with 7-state status toggles.
+Milestone 5: Daily Study Log ledger and Persistent Right Calendar with Day Inspector.
+Milestone 6: Spaced Repetition Practice Hub and Knowledge Library.
+
+================================================================================
+END OF DOCUMENT 05
+================================================================================

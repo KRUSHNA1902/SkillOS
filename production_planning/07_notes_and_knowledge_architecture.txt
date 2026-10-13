@@ -1,0 +1,74 @@
+================================================================================
+SKILLOS — PERSONAL LEARNING & PROGRESS MANAGEMENT PLATFORM
+PROJECT PLANNING & EVOLUTION LOG [DOCUMENT: 07]
+File: 07_notes_and_knowledge_architecture.txt
+Created: 2026-10-13
+Status: Operational Notes & Knowledge Architecture Phase (CURRENT)
+================================================================================
+
+================================================================================
+VERSION TRACKING & CHANGELOG
+================================================================================
+[x] 01 — Baseline Planning, 3-Part Layout & Core Modules Specification
+[x] 02 — Deep Technical Architecture & Stack Mapping
+[x] 03 — Draggable Widget Grid Integration
+[x] 04 — Gemini AI Engine, Data Project Curriculum & Overall System Synthesis
+[x] 05 — Data Saving, Storage, and Viewing Architecture & Implementation
+[x] 06 — Task Operations, Chronological Delivery Timeline & Deadline Alert Engine
+[x] 07 — Notes & Knowledge Architecture, Studio/Gallery Views & AI Synthesis (CURRENT)
+
+--------------------------------------------------------------------------------
+--- NEW & EXCLUSIVE IN THIS VERSION (07) ---
+--------------------------------------------------------------------------------
+1. Centralized Knowledge Notes Engine (NotesProvider & useNotes):
+   - Aligned with PostgreSQL relational schema: `skillos_knowledge_notes` (from Document 05).
+   - Offline-first persistence via browser `localStorage` (`skillos_knowledge_notes_v1`) with instant 0ms optimistic UI updates.
+   - Comprehensive pre-seeded knowledge library spanning all 6 curriculum tracks:
+     * PostgreSQL Window Functions (LEAD, LAG, DENSE_RANK, PARTITION BY)
+     * Pandas DataFrame Vectorization vs apply() & Memory Optimization
+     * DAX Time Intelligence Patterns (SAMEPERIODLASTYEAR, TOTALYTD)
+     * DCF Valuation Modeling, Unlevered Free Cash Flows & WACC Formulas
+     * Gemini 3.8 Flash Multi-Turn Structured Prompting & Agent Guardrails
+     * SkillOS Responsive Shell Boundaries & Spring Physics Damping
+   - Real-time live metrics: total notes, pinned notes count, code snippet counts, area distributions, and dynamic tag frequency clouds.
+
+2. Dual Viewing Modes in Notes Workspace (NotesView):
+   - Split-Pane Studio View (Notion / Obsidian style):
+     * Left master pane: high-density list with search, active selection accent, track badge, pinned indicator, date stamps, and tag preview chips.
+     * Right detail pane: full markdown reader with headers (H1-H3), bullet/numbered lists, alerts (> [!NOTE], > [!TIP], > [!WARNING]), inline code formatting, and metadata ribbon.
+     * Dedicated syntax code snippet terminal with dark obsidian styling, language indicator, and 1-click clipboard copy with animated verification.
+   - Gallery Card Grid View:
+     * Multi-column responsive card layout with chromatic track borders, pinned toggles, truncated previews, tag pills, and quick action bar (Pin, Edit, Duplicate, Delete).
+
+3. Rich Markdown & Syntax Note Editor (NoteModal):
+   - Full note creation and editing dialog with:
+     * Title with validation
+     * Learning Track selector across 8 core tracks
+     * Interactive Tag Chip manager (press Enter or comma to add, 1-click remove, quick-add suggested tags)
+     * Syntax-ready Code Snippet input with language selection (SQL, Python, TypeScript, JavaScript, DAX, Bash, JSON, Markdown)
+     * Markdown Content editor with Quick Formatting Toolbar: Bold, H2, H3, Bullet list, Inline code, Alerts, Formulas
+     * Live Preview tab switcher (Edit vs Preview)
+     * Pin to Top of Knowledge Base switch
+     * "Synthesize with AI" action: delegates to Gemini 3.8 Flash (`mode: 'notes'`) to auto-format executive summary, chronological concept timeline, cheatsheet formulas, and anti-pattern pitfalls.
+
+4. Fast AI Note Synthesizer:
+   - 1-Click AI Synthesizer modal in Notes workspace:
+     * User enters topic or concept (e.g., "PostgreSQL Recursive CTEs" or "Pandas Polars Benchmarks")
+     * Selects target learning track
+     * Calls Gemini 3.8 Flash engine and creates an immediately formatted knowledge note in the user's library.
+
+5. Cross-Workspace Synchronization:
+   - Dashboard Integration:
+     * Replaced local unpersisted notes state with live `useNotes()` hook.
+     * "Latest Notes & Scratchpad" card on Dashboard displays live persisted notes.
+     * "Open Studio" shortcut links directly into NotesView.
+     * Clicking any note card in Dashboard opens that specific note in the Notes workspace.
+     * "+ Quick Note" on Dashboard saves directly to the shared Knowledge Notes store.
+   - AI Assistant Integration:
+     * "Save to Notes" in ChatMessageItem directly creates a structured note in `useNotes()`.
+     * Automatically extracts code blocks, tags, and matches the conversation's active learning track.
+
+6. Markdown Export Suite:
+   - 1-Click single note export: downloads standalone `.md` document formatted with metadata and fenced code blocks.
+   - 1-Click bulk export: downloads the entire SkillOS knowledge base as an aggregated markdown compilation.
+================================================================================

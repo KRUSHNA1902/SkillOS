@@ -27,13 +27,13 @@ import {
   CircleUserRound,
   Command,
   Inbox,
+  FolderKanban,
   LayoutGrid,
   ListTodo,
   NotebookTabs,
   PanelLeft,
   Search,
   Sparkles,
-  Target,
   Workflow,
   X,
 } from "lucide-react";
@@ -50,9 +50,9 @@ const destinations = [
     icon: Building2,
   },
   {
-    label: "Opportunities",
-    icon: Target,
-    children: ["Pipeline", "Forecast", "Closed deals"],
+    label: "Projects",
+    icon: FolderKanban,
+    children: ["All Projects", "In Progress", "Completed"],
   },
   {
     label: "Tasks",

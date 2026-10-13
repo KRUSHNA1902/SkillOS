@@ -121,14 +121,14 @@ const SignIn1: React.FC<SignInProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#121212] relative overflow-hidden w-full px-4 py-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground relative overflow-hidden w-full px-4 py-8">
       {/* Dev Mode Floating Quick Bypass */}
       {import.meta.env.DEV && (
         <div className="fixed top-4 right-4 z-50">
           <button
             type="button"
             onClick={handleDevBypass}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#181824]/90 hover:bg-[#202030] border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-xs font-mono backdrop-blur-md transition-all shadow-lg active:scale-95 group cursor-pointer"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/90 hover:bg-card border border-amber-500/40 hover:border-amber-400 text-amber-700 dark:text-amber-300 text-xs font-mono backdrop-blur-md transition-all shadow-md active:scale-95 group cursor-pointer"
             title="Click to bypass authentication in local development mode"
           >
             <span className="relative flex h-2 w-2">
@@ -136,7 +136,7 @@ const SignIn1: React.FC<SignInProps> = ({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
             </span>
             <span className="flex items-center gap-1 font-semibold">
-              <Zap className="w-3 h-3 text-amber-400" />
+              <Zap className="w-3 h-3 text-amber-500 dark:text-amber-400" />
               Dev Bypass
             </span>
           </button>
@@ -144,18 +144,18 @@ const SignIn1: React.FC<SignInProps> = ({
       )}
 
       {/* Decorative background glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Centered glass card */}
-      <div className="relative z-10 w-full max-w-sm rounded-3xl bg-gradient-to-r from-[#ffffff10] to-[#121212] backdrop-blur-md border border-white/10 shadow-2xl p-8 flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-sm rounded-3xl bg-card/95 backdrop-blur-md border border-border/80 shadow-xl p-8 flex flex-col items-center">
         {/* Logo */}
-        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 mb-6 shadow-lg border border-white/20">
-          <Sparkles className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-6 shadow-sm border border-primary/20 text-primary">
+          <Sparkles className="w-6 h-6" />
         </div>
 
         {/* Title */}
-        <h2 className="text-2xl font-semibold text-white mb-6 text-center tracking-tight">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 text-center tracking-tight">
           {isSignUp ? `Create a ${title} account` : `Sign in to ${title}`}
         </h2>
 
@@ -166,13 +166,13 @@ const SignIn1: React.FC<SignInProps> = ({
             {isSignUp && (
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <User className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <input
                   placeholder="Full Name"
                   type="text"
                   value={fullName}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 transition border border-white/10"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition border border-border/80"
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={isLoading}
                 />
@@ -181,13 +181,13 @@ const SignIn1: React.FC<SignInProps> = ({
 
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
+                <Mail className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 placeholder="Email Address"
                 type="email"
                 value={email}
-                className="w-full pl-12 pr-4 py-3 rounded-xl bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 transition border border-white/10"
+                className="w-full pl-12 pr-4 py-3 rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition border border-border/80"
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
               />
@@ -195,20 +195,20 @@ const SignIn1: React.FC<SignInProps> = ({
 
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
+                <Lock className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 placeholder="Password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                className="w-full pl-12 pr-12 py-3 rounded-xl bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 transition border border-white/10"
+                className="w-full pl-12 pr-12 py-3 rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition border border-border/80"
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
               />
               <button 
                 type="button" 
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition"
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -218,20 +218,20 @@ const SignIn1: React.FC<SignInProps> = ({
               <>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Shield className="h-5 w-5 text-gray-400" />
+                    <Shield className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <input
                     placeholder="Confirm Password"
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
-                    className="w-full pl-12 pr-12 py-3 rounded-xl bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 transition border border-white/10"
+                    className="w-full pl-12 pr-12 py-3 rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition border border-border/80"
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isLoading}
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-foreground transition"
                   >
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -239,13 +239,13 @@ const SignIn1: React.FC<SignInProps> = ({
 
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-gray-400" />
+                    <Phone className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <input
                     placeholder="Phone Number (Optional)"
                     type="tel"
                     value={phone}
-                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 transition border border-white/10"
+                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition border border-border/80"
                     onChange={(e) => setPhone(e.target.value)}
                     disabled={isLoading}
                   />
@@ -256,31 +256,31 @@ const SignIn1: React.FC<SignInProps> = ({
                     type="checkbox" 
                     checked={termsAccepted}
                     onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mt-1 bg-transparent border-gray-500 rounded text-purple-600 focus:ring-purple-600 focus:ring-offset-gray-900" 
+                    className="mt-1 bg-transparent border-border rounded text-primary focus:ring-primary" 
                   />
-                  <span className="text-sm text-gray-400">
-                    I agree to the <a href="#" className="text-white hover:underline">Terms of Service</a> and <a href="#" className="text-white hover:underline">Privacy Policy</a>
+                  <span className="text-sm text-muted-foreground">
+                    I agree to the <a href="#" className="text-foreground font-medium hover:underline">Terms of Service</a> and <a href="#" className="text-foreground font-medium hover:underline">Privacy Policy</a>
                   </span>
                 </label>
               </>
             )}
 
             {error && (
-              <div className="text-sm text-red-400 text-left font-medium animate-fadeIn">
+              <div className="text-sm text-destructive text-left font-medium animate-fadeIn">
                 {error}
               </div>
             )}
           </div>
 
-          <hr className="opacity-10 border-white my-2" />
+          <hr className="opacity-40 border-border/80 my-2" />
 
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center gap-2 bg-white text-black font-semibold px-5 py-3 rounded-full shadow-md hover:bg-gray-200 transition mb-3 text-sm active:scale-[0.99] disabled:opacity-50"
+              className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground font-semibold px-5 py-3 rounded-full shadow-md hover:bg-primary/90 transition mb-3 text-sm active:scale-[0.99] disabled:opacity-50"
             >
-              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-black" />}
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary-foreground" />}
               {isSignUp ? 'Create Account' : 'Sign in'}
             </button>
 
@@ -289,7 +289,7 @@ const SignIn1: React.FC<SignInProps> = ({
               type="button"
               onClick={handleGoogleClick}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-b from-[#232526] to-[#2d2e30] rounded-full px-5 py-3 font-medium text-white shadow hover:brightness-110 transition mb-2 text-sm border border-white/5 active:scale-[0.99] disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-card hover:bg-muted text-foreground rounded-full px-5 py-3 font-medium shadow-sm transition mb-2 text-sm border border-border/80 active:scale-[0.99] disabled:opacity-50"
             >
               {/* Google G SVG */}
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -315,24 +315,24 @@ const SignIn1: React.FC<SignInProps> = ({
 
             {/* Dev Mode Bypass Button */}
             {import.meta.env.DEV && (
-              <div className="w-full mt-2 pt-2 border-t border-dashed border-white/10 flex flex-col items-center">
+              <div className="w-full mt-2 pt-2 border-t border-dashed border-border/80 flex flex-col items-center">
                 <button
                   type="button"
                   onClick={handleDevBypass}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500/10 via-amber-400/15 to-amber-500/10 hover:from-amber-500/20 hover:via-amber-400/25 hover:to-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-400/60 rounded-full px-4 py-2.5 font-medium text-xs transition duration-200 active:scale-[0.99] shadow-sm cursor-pointer group"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500/10 via-amber-400/15 to-amber-500/10 hover:from-amber-500/20 hover:via-amber-400/25 hover:to-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:border-amber-400/60 rounded-full px-4 py-2.5 font-medium text-xs transition duration-200 active:scale-[0.99] shadow-sm cursor-pointer group"
                   title="Quick bypass authentication for local development only"
                 >
-                  <Zap className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <Zap className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform" />
                   <span>⚡ Dev Bypass (Skip Login)</span>
                 </button>
-                <span className="text-[10px] text-amber-400/60 mt-1 font-mono">
+                <span className="text-[10px] text-amber-600/70 dark:text-amber-400/60 mt-1 font-mono">
                   Dev environment only
                 </span>
               </div>
             )}
 
             <div className="w-full text-center mt-2">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-muted-foreground">
                 {isSignUp ? "Already have an account? " : "Don't have an account? "}
                 <button
                   type="button"
@@ -340,7 +340,7 @@ const SignIn1: React.FC<SignInProps> = ({
                     setIsSignUp(!isSignUp);
                     setError("");
                   }}
-                  className="underline text-white/80 hover:text-white transition focus:outline-none"
+                  className="underline text-foreground/80 hover:text-foreground transition focus:outline-none"
                 >
                   {isSignUp ? "Sign in!" : "Sign up, it's free!"}
                 </button>
@@ -352,29 +352,29 @@ const SignIn1: React.FC<SignInProps> = ({
 
       {/* Footer / Users */}
       <div className="relative z-10 mt-10 flex flex-col items-center text-center max-w-sm px-4">
-        <p className="text-gray-400 text-sm mb-3">
+        <p className="text-muted-foreground text-sm mb-3">
           {subtitle}
         </p>
         <div className="flex -space-x-2">
           <img
             src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
             alt="User 1"
-            className="w-8 h-8 rounded-full border-2 border-[#181824] object-cover ring-1 ring-white/10"
+            className="w-8 h-8 rounded-full border-2 border-background object-cover ring-1 ring-border/50"
           />
           <img
             src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces"
             alt="User 2"
-            className="w-8 h-8 rounded-full border-2 border-[#181824] object-cover ring-1 ring-white/10"
+            className="w-8 h-8 rounded-full border-2 border-background object-cover ring-1 ring-border/50"
           />
           <img
             src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces"
             alt="User 3"
-            className="w-8 h-8 rounded-full border-2 border-[#181824] object-cover ring-1 ring-white/10"
+            className="w-8 h-8 rounded-full border-2 border-background object-cover ring-1 ring-border/50"
           />
           <img
             src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces"
             alt="User 4"
-            className="w-8 h-8 rounded-full border-2 border-[#181824] object-cover ring-1 ring-white/10"
+            className="w-8 h-8 rounded-full border-2 border-background object-cover ring-1 ring-border/50"
           />
         </div>
       </div>

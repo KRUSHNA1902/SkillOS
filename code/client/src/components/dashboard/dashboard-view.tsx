@@ -16,28 +16,23 @@ import {
   GitCommit,
   Rocket,
   Flame,
+  Trash2,
+  ListTodo,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
+import {
+  WorkflowTask,
+  TaskPriority,
+  TaskStatus,
+} from "@/components/tasks/task-types";
+import {
+  useTaskManager,
+  calculateTimeRemaining,
+} from "@/components/tasks/task-context";
+import { useNotes } from "@/components/notes/note-context";
 
-export type TaskStatus = "in_progress" | "pending" | "completed";
-export type TaskPriority = "urgent" | "high" | "medium" | "low";
-
-export interface WorkflowTask {
-  id: string;
-  title: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  category: string;
-  dueDate: string;
-}
-
-export interface NoteItem {
-  id: string;
-  title: string;
-  preview: string;
-  tag: string;
-  updatedAt: string;
-  pinned?: boolean;
-}
+export type { TaskStatus, TaskPriority, WorkflowTask };
 
 export interface WorkflowUpdate {
   id: string;
@@ -46,98 +41,6 @@ export interface WorkflowUpdate {
   time: string;
   type: "deploy" | "skill" | "task" | "ai" | "system";
 }
-
-const initialTasks: WorkflowTask[] = [
-  {
-    id: "task-1",
-    title: "Implement Animated Sidebar navigation rail with spring physics",
-    status: "in_progress",
-    priority: "high",
-    category: "Frontend UI",
-    dueDate: "Today, 5:00 PM",
-  },
-  {
-    id: "task-2",
-    title: "Connect Supabase Auth session tokens with Express middleware",
-    status: "in_progress",
-    priority: "urgent",
-    category: "Auth Pipeline",
-    dueDate: "Today, 7:30 PM",
-  },
-  {
-    id: "task-3",
-    title: "Optimize LCP and reduce motion jank on mobile drawer viewport",
-    status: "in_progress",
-    priority: "medium",
-    category: "Performance",
-    dueDate: "Tomorrow",
-  },
-  {
-    id: "task-4",
-    title: "Design SkillOS task hierarchy & interactive checklist workflow",
-    status: "completed",
-    priority: "high",
-    category: "Workflow Engine",
-    dueDate: "Completed",
-  },
-  {
-    id: "task-5",
-    title: "Configure Tailwind CSS dark theme tokens for shadcn UI components",
-    status: "completed",
-    priority: "medium",
-    category: "Design System",
-    dueDate: "Completed",
-  },
-  {
-    id: "task-6",
-    title: "Automate PostgreSQL database migration scripts on cloud host",
-    status: "pending",
-    priority: "high",
-    category: "Backend",
-    dueDate: "In 2 days",
-  },
-  {
-    id: "task-7",
-    title: "Benchmark AI skill assessment prompts against real developer code",
-    status: "pending",
-    priority: "medium",
-    category: "AI Engine",
-    dueDate: "Friday",
-  },
-];
-
-const initialNotes: NoteItem[] = [
-  {
-    id: "note-1",
-    title: "Architecture: Responsive Shell Boundaries",
-    preview: "Spring damping should be critically tuned (mass 0.75, damping 35) to avoid overshooting zero-width rails on desktop resize.",
-    tag: "Architecture",
-    updatedAt: "25m ago",
-    pinned: true,
-  },
-  {
-    id: "note-2",
-    title: "Sprint 4 Checklist: Auth & Tokens",
-    preview: "Ensure JWT validation runs before protected routes. Dev bypass mode must only activate when VITE_DEV_BYPASS is explicitly true.",
-    tag: "Security",
-    updatedAt: "2h ago",
-    pinned: true,
-  },
-  {
-    id: "note-3",
-    title: "Skill Verification Rubric",
-    preview: "Developers need 3 validated task submissions across AST parsing, responsive layout, and async state management.",
-    tag: "Learning",
-    updatedAt: "5h ago",
-  },
-  {
-    id: "note-4",
-    title: "Tailwind Color Mapping Notes",
-    preview: "Always map hsl(var(--card)) and hsl(var(--muted)) rather than hardcoding hex so dark/light theme switching works natively.",
-    tag: "Design System",
-    updatedAt: "1d ago",
-  },
-];
 
 const initialUpdates: WorkflowUpdate[] = [
   {
@@ -182,6 +85,8 @@ export interface DashboardViewProps {
   userEmail?: string;
   isDevUser?: boolean;
   onOpenAI?: () => void;
+  onOpenTasks?: () => void;
+  onOpenNotes?: () => void;
 }
 
 export function DashboardView({
@@ -189,70 +94,72 @@ export function DashboardView({
   userEmail = "developer@skillos.local",
   isDevUser = false,
   onOpenAI,
+  onOpenTasks,
+  onOpenNotes,
 }: DashboardViewProps) {
-  const [tasks, setTasks] = useState<WorkflowTask[]>(initialTasks);
-  const [notes, setNotes] = useState<NoteItem[]>(initialNotes);
+  const {
+    tasks,
+    metrics,
+    addTask,
+    deleteTask,
+    toggleTaskStatus,
+    activeAlerts,
+  } = useTaskManager();
+
+  const {
+    notes,
+    addNote,
+    setSelectedNoteId,
+  } = useNotes();
+
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [newTaskInput, setNewTaskInput] = useState("");
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [newNotePreview, setNewNotePreview] = useState("");
   const [newNoteTag, setNewNoteTag] = useState("General");
+  const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
 
-  // Dynamic workflow metrics
-  const inProgressCount = tasks.filter((t) => t.status === "in_progress").length;
-  const completedCount = tasks.filter((t) => t.status === "completed").length;
-  const pendingCount = tasks.filter((t) => t.status === "pending").length;
-  const totalCount = tasks.length;
-  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  // Dynamic workflow metrics from shared TaskManager
+  const inProgressCount = metrics.inProgress;
+  const completedCount = metrics.completed;
+  const pendingCount = metrics.pending;
+  const totalCount = metrics.total;
+  const completionRate = metrics.completionRate;
 
   // Toggle task status
   const toggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id === id) {
-          const nextStatus: TaskStatus =
-            task.status === "completed" ? "in_progress" : "completed";
-          return {
-            ...task,
-            status: nextStatus,
-            dueDate: nextStatus === "completed" ? "Completed" : "Today",
-          };
-        }
-        return task;
-      })
-    );
+    toggleTaskStatus(id);
   };
 
   // Quick add task
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskInput.trim()) return;
-    const newTask: WorkflowTask = {
-      id: `task-${Date.now()}`,
+    addTask({
       title: newTaskInput.trim(),
       status: "in_progress",
       priority: "high",
       category: "Workflow",
-      dueDate: "Today",
-    };
-    setTasks([newTask, ...tasks]);
+      dueDate: "Today, 6:00 PM",
+      deadline: "2026-10-13T18:00",
+      timelineStage: "in_progress",
+      reminderAlert: true,
+    });
     setNewTaskInput("");
   };
 
-  // Quick add note
+  // Quick add note to shared Knowledge Notes store
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNoteTitle.trim() || !newNotePreview.trim()) return;
-    const newNote: NoteItem = {
-      id: `note-${Date.now()}`,
+    addNote({
       title: newNoteTitle.trim(),
-      preview: newNotePreview.trim(),
-      tag: newNoteTag.trim() || "General",
-      updatedAt: "Just now",
+      contentMarkdown: newNotePreview.trim(),
+      area: "General",
+      tags: [newNoteTag.trim() || "General"],
       pinned: true,
-    };
-    setNotes([newNote, ...notes]);
+    });
     setNewNoteTitle("");
     setNewNotePreview("");
     setShowAddNote(false);
@@ -284,11 +191,32 @@ export function DashboardView({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeAlerts.length > 0 && onOpenTasks && (
+            <button
+              type="button"
+              onClick={onOpenTasks}
+              title="View deadline alerts in Tasks workspace"
+              className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 backdrop-blur-sm hover:bg-rose-500/25 transition-colors cursor-pointer"
+            >
+              <AlertCircle className="size-3.5 text-rose-400 animate-pulse" />
+              <span>{activeAlerts.length} Deadline Alert{activeAlerts.length > 1 ? "s" : ""}</span>
+            </button>
+          )}
           <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
             <Clock className="size-3.5 text-emerald-400" />
             <span>Sprint 4 • Day 6 of 14</span>
           </div>
+          {onOpenTasks && (
+            <button
+              type="button"
+              onClick={onOpenTasks}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted cursor-pointer"
+            >
+              <ListTodo className="size-3.5 text-primary" />
+              <span>Tasks</span>
+            </button>
+          )}
           {onOpenAI && (
             <button
               type="button"
@@ -500,56 +428,58 @@ export function DashboardView({
                     </span>
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Interactive task manager • Click checkbox to mark as completed
+                    Interactive task manager • Click checkbox to complete • Delete or view notes
                   </CardDescription>
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-1 rounded-xl bg-muted/70 p-1 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setFilter("all")}
-                    className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
-                      filter === "all"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("in_progress")}
-                    className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
-                      filter === "in_progress"
-                        ? "bg-background text-amber-400 shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Active ({inProgressCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("pending")}
-                    className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
-                      filter === "pending"
-                        ? "bg-background text-blue-400 shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Pending ({pendingCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("completed")}
-                    className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
-                      filter === "completed"
-                        ? "bg-background text-emerald-400 shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Done ({completedCount})
-                  </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Filter Tabs */}
+                  <div className="flex items-center gap-1 rounded-xl bg-muted/70 p-1 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setFilter("all")}
+                      className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                        filter === "all"
+                          ? "bg-background text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilter("in_progress")}
+                      className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                        filter === "in_progress"
+                          ? "bg-background text-amber-400 shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Active ({inProgressCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilter("pending")}
+                      className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                        filter === "pending"
+                          ? "bg-background text-blue-400 shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Pending ({pendingCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilter("completed")}
+                      className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                        filter === "completed"
+                          ? "bg-background text-emerald-400 shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Done ({completedCount})
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -583,80 +513,134 @@ export function DashboardView({
                     const isDone = task.status === "completed";
                     const isUrgent = task.priority === "urgent";
                     const isHigh = task.priority === "high";
+                    const calc = calculateTimeRemaining(task.deadline);
+                    const isNotesExpanded = expandedNotesId === task.id;
 
                     return (
                       <div
                         key={task.id}
-                        className="group flex items-start justify-between gap-3 py-3 transition-colors hover:bg-muted/30 -mx-2 px-2 rounded-xl"
+                        className="group flex flex-col gap-1.5 py-3 transition-colors hover:bg-muted/30 -mx-2 px-2 rounded-xl"
                       >
-                        <div className="flex items-start gap-3 min-w-0">
-                          {/* Interactive Checkbox */}
-                          <button
-                            type="button"
-                            onClick={() => toggleTask(task.id)}
-                            aria-label={isDone ? "Mark as in progress" : "Mark as completed"}
-                            className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-lg border transition-all cursor-pointer ${
-                              isDone
-                                ? "border-emerald-500 bg-emerald-500 text-black shadow-xs"
-                                : "border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
-                            }`}
-                          >
-                            {isDone && <Check className="size-3 stroke-[3]" />}
-                          </button>
-
-                          <div className="min-w-0 space-y-1">
-                            <p
-                              className={`text-xs font-medium leading-snug transition-all ${
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            {/* Interactive Checkbox */}
+                            <button
+                              type="button"
+                              onClick={() => toggleTask(task.id)}
+                              aria-label={isDone ? "Mark as in progress" : "Mark as completed"}
+                              className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-lg border transition-all cursor-pointer ${
                                 isDone
-                                  ? "line-through text-muted-foreground/60"
-                                  : "text-foreground"
+                                  ? "border-emerald-500 bg-emerald-500 text-black shadow-xs"
+                                  : "border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
                               }`}
                             >
-                              {task.title}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                              <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-muted-foreground">
-                                {task.category}
-                              </span>
+                              {isDone && <Check className="size-3 stroke-[3]" />}
+                            </button>
 
-                              {isUrgent && (
-                                <span className="rounded-md bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-400 border border-rose-500/20">
-                                  Urgent
+                            <div className="min-w-0 space-y-1 flex-1">
+                              <p
+                                className={`text-xs font-medium leading-snug transition-all ${
+                                  isDone
+                                    ? "line-through text-muted-foreground/60"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                {task.title}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                                  {task.category}
                                 </span>
-                              )}
-                              {isHigh && (
-                                <span className="rounded-md bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-400 border border-amber-500/20">
-                                  High
-                                </span>
-                              )}
 
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <Clock className="size-2.5" />
-                                {task.dueDate}
-                              </span>
+                                {isUrgent && (
+                                  <span className="rounded-md bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-400 border border-rose-500/20">
+                                    Urgent
+                                  </span>
+                                )}
+                                {isHigh && (
+                                  <span className="rounded-md bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-400 border border-amber-500/20">
+                                    High
+                                  </span>
+                                )}
+
+                                <span
+                                  className={`flex items-center gap-1 font-medium ${
+                                    isDone
+                                      ? "text-muted-foreground"
+                                      : calc.isOverdue
+                                      ? "text-rose-400 font-semibold"
+                                      : calc.isDueToday
+                                      ? "text-amber-400 font-semibold"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  <Clock className="size-2.5" />
+                                  <span>{task.dueDate}</span>
+                                  {!isDone && <span>({calc.formatted})</span>}
+                                </span>
+                              </div>
                             </div>
+                          </div>
+
+                          {/* Status Badge & Actions */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {task.notes && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedNotesId(
+                                    isNotesExpanded ? null : task.id
+                                  )
+                                }
+                                title="Toggle notes preview"
+                                className={`grid size-6 place-items-center rounded-md transition-colors cursor-pointer ${
+                                  isNotesExpanded
+                                    ? "bg-primary/20 text-primary"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                <FileText className="size-3" />
+                              </button>
+                            )}
+
+                            {/* Delete Task Button */}
+                            <button
+                              type="button"
+                              onClick={() => deleteTask(task.id)}
+                              title="Delete task"
+                              className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/20 hover:text-rose-400 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+
+                            {task.status === "in_progress" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20">
+                                <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Active
+                              </span>
+                            )}
+                            {task.status === "pending" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+                                Pending
+                              </span>
+                            )}
+                            {task.status === "completed" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
+                                Done
+                              </span>
+                            )}
                           </div>
                         </div>
 
-                        {/* Status Badge */}
-                        <div className="shrink-0">
-                          {task.status === "in_progress" && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20">
-                              <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                              Active
+                        {/* Inline Notes Preview */}
+                        {isNotesExpanded && task.notes && (
+                          <div className="mt-1 ml-8 rounded-lg border border-border/60 bg-background/70 p-2.5 text-[11px] text-muted-foreground leading-relaxed font-mono">
+                            <span className="text-[10px] font-sans font-semibold text-foreground block mb-0.5">
+                              Task Notes & Requirements:
                             </span>
-                          )}
-                          {task.status === "pending" && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
-                              Pending
-                            </span>
-                          )}
-                          {task.status === "completed" && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
-                              Done
-                            </span>
-                          )}
-                        </div>
+                            {task.notes}
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -678,35 +662,54 @@ export function DashboardView({
                 </CardDescription>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowAddNote(true)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
-              >
-                <Plus className="size-3" />
-                <span>New Note</span>
-              </button>
+              <div className="flex items-center gap-2.5">
+                {onOpenNotes && (
+                  <button
+                    type="button"
+                    onClick={onOpenNotes}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <span>Open Studio</span>
+                    <ChevronRight className="size-3" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowAddNote(true)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+                >
+                  <Plus className="size-3" />
+                  <span>New Note</span>
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 pt-1">
-              {notes.map((note) => (
+              {notes.slice(0, 4).map((note) => (
                 <div
                   key={note.id}
-                  className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition-all hover:border-primary/40 hover:bg-muted/40"
+                  onClick={() => {
+                    setSelectedNoteId(note.id);
+                    onOpenNotes?.();
+                  }}
+                  className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition-all hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        {note.tag}
+                        {note.tags[0] || note.area}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        {note.updatedAt}
+                        {new Date(note.updatedAt).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                        })}
                       </span>
                     </div>
-                    <h4 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                    <h4 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
                       {note.title}
                     </h4>
                     <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
-                      {note.preview}
+                      {note.contentMarkdown.replace(/[#*`>-]/g, "").slice(0, 110)}
                     </p>
                   </div>
                 </div>

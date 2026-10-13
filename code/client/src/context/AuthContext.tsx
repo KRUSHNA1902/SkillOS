@@ -3,13 +3,27 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 export interface User {
   id: string;
   email: string;
-  // add other fields from Supabase if needed
+  fullName?: string;
+  role?: string;
+  department?: string;
+  phone?: string;
+  bio?: string;
+  skills?: string[];
+  accentColor?: string;
+  settings?: {
+    compactMode?: boolean;
+    emailAlerts?: boolean;
+    aiSuggestions?: boolean;
+    workflowAlerts?: boolean;
+    theme?: 'light' | 'dark' | 'system' | 'contrast';
+  };
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   setUser: (user: User | null) => void;
+  updateUser: (updatedData: Partial<User>) => void;
   logout: () => Promise<void>;
   loginAsDev: (devUser?: Partial<User>) => void;
 }
@@ -67,10 +81,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     fetchUser();
   }, []);
 
+  const updateUser = (updatedData: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const merged: User = {
+        ...prev,
+        ...updatedData,
+        settings: {
+          ...prev.settings,
+          ...updatedData.settings,
+        },
+      };
+      if (import.meta.env.DEV) {
+        try {
+          localStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(merged));
+        } catch (err) {
+          console.error('Error saving updated user to localStorage:', err);
+        }
+      }
+      return merged;
+    });
+  };
+
   const loginAsDev = (customDev?: Partial<User>) => {
     const devUser: User = {
       id: customDev?.id || 'dev-user-001',
-      email: customDev?.email || 'dev@skillos.local',
+      email: customDev?.email || 'developer@skillos.local',
+      fullName: customDev?.fullName || 'Developer',
+      role: customDev?.role || 'Lead Engineer',
+      department: customDev?.department || 'Engineering Org',
+      phone: customDev?.phone || '+1 (555) 019-2834',
+      bio: customDev?.bio || 'Full stack engineer building intelligent workflow operating systems.',
+      skills: customDev?.skills || ['TypeScript', 'React', 'Tailwind', 'AI Agents', 'Supabase'],
+      accentColor: customDev?.accentColor || 'amber',
+      settings: {
+        compactMode: false,
+        emailAlerts: true,
+        aiSuggestions: true,
+        workflowAlerts: true,
+        theme: 'light',
+        ...customDev?.settings,
+      },
       ...customDev,
     };
     if (import.meta.env.DEV) {
@@ -96,7 +147,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, setUser, logout, loginAsDev }}>
+    <AuthContext.Provider value={{ user, loading, setUser, updateUser, logout, loginAsDev }}>
       {children}
     </AuthContext.Provider>
   );

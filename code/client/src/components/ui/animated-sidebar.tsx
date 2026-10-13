@@ -457,7 +457,7 @@ function MobileSidebar({
           }
         }}
         className={cn(
-          "pointer-events-auto fixed inset-y-0 flex h-dvh w-(--sidebar-width-mobile) max-w-[88vw] flex-col overflow-hidden",
+          "pointer-events-auto fixed inset-y-0 flex h-dvh w-72 max-w-[88vw] flex-col overflow-hidden",
           "border-border bg-background shadow-2xl will-change-transform",
           side === "left" ? "left-0 border-r" : "right-0 border-l",
           !context.openMobile && "pointer-events-none",

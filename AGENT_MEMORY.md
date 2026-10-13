@@ -25,9 +25,12 @@ SkillOS connects three pillars of learning:
   3. Persistent Right-Hand Calendar (Historical daily tracking, activity dots, day inspector)
 
 ## 4. Current State & History
-- **Documentation:** The project architecture is version-tracked in sequentially numbered text files inside `production_planning/` (e.g., `01_skillos_planning_and_architecture.txt`, `02_skillos_technical_architecture.txt`, `03_draggable_widget_grid_integration.txt`, and `04_gemini_ai_integration_and_data_summary.txt`).
+- **Documentation:** The project architecture is version-tracked in sequentially numbered text files inside `production_planning/` (`01_...` through `06_task_operations_timeline_and_alert_architecture.txt`).
 - **Codebase Structure:** Monorepo under `code/` containing `code/client/` (React+Vite+TS+Tailwind+shadcn) and `code/server/` (Node+Express).
-- **Current Milestone:** Integrated Google Gemini AI engine (`gemini-3.5-flash-lite`, `gemini-3.8-flash`) with backend REST routes (`/api/ai/chat`, `/api/ai/summarize-project`, `/api/ai/generate-roadmap`, `/api/ai/status`) and interactive UI (`ai-assistant-view.tsx`) providing instant synthesis of the 6 data tracks, 7-state topic progression, and 8 database tables.
+- **Recent Milestones:**
+  - **Milestone 04 & 05 (AI & Persistence):** Custom AI operational modes (Learning, Planning, Notes) and relational storage architecture. Upgraded primary model to Gemini 3.8 Flash across backend, client service, and UI. Seamless single-screen dark obsidian theme (`#0e0e10` / `#121214`), removing all dividing horizontal lines above the composer box.
+  - **Milestone 06 (Advanced Task Operations & Timeline):** Full interactive task management engine (`TaskManagerProvider`), rich task creation/editing dialog (`TaskModal`), bulk completed task cleanup ("Clean Old Tasks"), chronological milestone timeline view (`TaskTimelineView`), deadline countdowns, overdue alert notification banner (`TaskAlertsBanner`), 1-click priority cycle switcher, and expandable technical notes scratchpad. Synchronized across Dashboard and dedicated Tasks workspace.
+  - **Milestone 07 (Operational Notes & Knowledge Base):** Fully operational Knowledge Notes engine (`NotesProvider`, `useNotes`), dual viewing modes (Split-Pane Studio View and Gallery Card Grid View), rich Markdown reader with callouts and formulas, syntax-highlighted code snippet terminal with 1-click copy, interactive note creation/editing modal (`NoteModal`) with live markdown toolbar and preview, 1-click "AI Synthesizer" generating high-yield study notes via Gemini 3.8 Flash, Markdown export suite (.md file download and bulk export), and live cross-workspace synchronization with Dashboard and AI Assistant.
 
 ## Agent Instructions for this Workspace
 - Always refer to the numbered planning text files in `production_planning/` (`01_...`, `02_...`) for the source of truth on architecture.

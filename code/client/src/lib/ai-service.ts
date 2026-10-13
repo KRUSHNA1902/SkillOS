@@ -7,6 +7,8 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 const CLIENT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
+export type AIMode = 'learning' | 'planning' | 'notes';
+
 export interface AIChatMessage {
   role: 'user' | 'model';
   text: string;
@@ -15,6 +17,9 @@ export interface AIChatMessage {
 export interface AIChatResponse {
   reply: string;
   model: string;
+  mode?: AIMode;
+  latencyMs?: number;
+  thought?: string;
   usage?: {
     totalTokenCount?: number;
     promptTokenCount?: number;
@@ -22,6 +27,19 @@ export interface AIChatResponse {
   };
   timestamp?: string;
   source: 'backend' | 'client-direct';
+}
+
+export interface AIEvaluationResponse {
+  isCorrect: boolean;
+  status: 'correct' | 'partial' | 'incorrect';
+  score: number;
+  verdictTitle: string;
+  feedback: string;
+  errorsIdentified?: string[];
+  optimalSolution: string;
+  explanation: string;
+  model?: string;
+  source?: 'backend' | 'client-direct';
 }
 
 export interface AIProjectSummaryResponse {
@@ -39,12 +57,62 @@ export interface AIRoadmapResponse {
   source: 'backend' | 'client-direct';
 }
 
-const FALLBACK_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+const FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+
+export const CLIENT_MODE_PROMPTS: Record<AIMode, string> = {
+  learning: `You are the SkillOS Learning Copilot — an expert pedagogical tutor and problem-solving mentor.
+Your mission is to help the user master technical topics (SQL, Python, Power BI, Finance, AI, etc.) through deep, clear explanations and interactive practice.
+When explaining any concept or solving any problem:
+1. Provide an intuitive, step-by-step conceptual breakdown.
+2. Provide clean, well-commented code/query examples.
+3. Highlight key rules, common mistakes, and edge cases.
+4. End your response with a structured practice challenge formatted clearly as:
+---
+### 🎯 Practice Challenge: [Challenge Title]
+**Problem Statement:** [Clear description of what query, function, or calculation to write]
+**Sample Input / Schema:**
+\`\`\`sql
+[Schema or sample records]
+\`\`\`
+**Expected Output:** [Expected result table or return value]
+**Constraint:** [e.g. Must use window function, no subqueries]
+**Hint:** [Subtle hint to guide the learner]
+---`,
+
+  planning: `You are the SkillOS Curriculum & Workflow Architect.
+Your mission is to design actionable, chronologically sequenced learning workflows and study execution roadmaps.
+When asked about learning a skill, transitioning careers, or preparing for projects:
+1. Provide a high-level Workflow Strategy & Architecture.
+2. Break it down into structured Chronological Phases (e.g. Phase 1: Foundation, Phase 2: Core Patterns, Phase 3: Advanced Optimization & Capstone).
+3. For each Phase provide:
+   - Specific Topics to master (aligned with SkillOS's 7-state topic progression: Not Started, In Progress, Practised, Completed, Mastered).
+   - Estimated daily/weekly study hours.
+   - Milestone Practice Exercises or Artifacts.
+   - Verification Checkpoint (criteria to verify mastery).
+4. Provide a Daily Study Routine (e.g., 45m Theory, 45m Hands-on Coding/Drills, 15m Log & Reflection).
+Format with clear markdown tables, bullet points, and milestone badges.`,
+
+  notes: `You are the SkillOS Knowledge Synthesizer & Note Architect.
+Your mission is to synthesize learning and planning into comprehensive, high-yield study notes with an explicit chronological timeline.
+Format every note with:
+1. **Executive Summary**: Core definition and purpose in 2-3 sentences.
+2. **⏳ Chronological Concept Timeline**: Ordered progression of how this topic is mastered (from foundational prerequisites -> core syntax -> intermediate logic -> advanced optimizations -> production readiness).
+3. **⚡ Syntax & Formulas Cheatsheet**: Clean, copy-pasteable code blocks, query templates, or mathematical formulas.
+4. **⚠️ Common Pitfalls & Anti-Patterns**: What errors learners frequently make and the correct patterns.
+5. **🧠 Spaced Repetition Recall Questions**: 3-4 key questions to test memory later.
+Format with clean GitHub-flavored markdown, callouts, and code blocks.`
+};
 
 /**
  * Direct client-side Gemini fallback caller in case the backend is temporarily stopped
  */
-async function callGeminiDirectly(prompt: string, history: AIChatMessage[] = []): Promise<{ text: string; model: string }> {
+async function callGeminiDirectly(
+  prompt: string,
+  history: AIChatMessage[] = [],
+  mode: AIMode = 'learning',
+  customInstruction?: string,
+  signal?: AbortSignal
+): Promise<{ text: string; model: string }> {
   if (!CLIENT_GEMINI_KEY) {
     throw new Error('Gemini API key is not configured');
   }
@@ -63,20 +131,26 @@ async function callGeminiDirectly(prompt: string, history: AIChatMessage[] = [])
     parts: [{ text: prompt }]
   });
 
+  const systemInstructionText = customInstruction || CLIENT_MODE_PROMPTS[mode] || CLIENT_MODE_PROMPTS.learning;
   let lastError: Error | null = null;
 
   for (const model of FALLBACK_MODELS) {
     try {
+      if (signal?.aborted) {
+        throw new DOMException('Aborted by user', 'AbortError');
+      }
+
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${CLIENT_GEMINI_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal,
           body: JSON.stringify({
             contents,
             systemInstruction: {
               parts: [{
-                text: 'You are SkillOS AI Assistant — an intelligent learning copilot and curriculum strategist built into SkillOS. Formulate helpful, markdown-formatted responses with clear bullet points and code blocks.'
+                text: systemInstructionText
               }]
             }
           })
@@ -98,6 +172,9 @@ async function callGeminiDirectly(prompt: string, history: AIChatMessage[] = [])
         return { text, model };
       }
     } catch (err) {
+      if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+        throw err;
+      }
       lastError = err instanceof Error ? err : new Error(String(err));
     }
   }
@@ -115,7 +192,7 @@ export async function checkAIStatus(): Promise<{ configured: boolean; model?: st
       const data = await res.json();
       return {
         configured: data.configured,
-        model: data.primaryModel || 'gemini-3.5-flash-lite',
+        model: data.primaryModel || 'gemini-3.8-flash',
         message: data.message
       };
     }
@@ -126,7 +203,7 @@ export async function checkAIStatus(): Promise<{ configured: boolean; model?: st
   if (CLIENT_GEMINI_KEY) {
     return {
       configured: true,
-      model: 'gemini-3.5-flash-lite',
+      model: 'gemini-3.8-flash',
       message: 'Direct Gemini API client connection ready'
     };
   }
@@ -138,43 +215,152 @@ export async function checkAIStatus(): Promise<{ configured: boolean; model?: st
 }
 
 /**
- * Send chat message to SkillOS AI
+ * Send chat message to SkillOS AI with mode and model support
  */
 export async function sendAIChat(
   message: string,
   history: AIChatMessage[] = [],
-  context: Record<string, unknown> = {}
+  context: Record<string, unknown> = {},
+  mode: AIMode = 'learning',
+  model: string = 'gemini-3.8-flash',
+  signal?: AbortSignal
 ): Promise<AIChatResponse> {
+  const startTime = performance.now();
   // 1. Try Backend
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history, context })
+      body: JSON.stringify({ message, history, context, mode, model }),
+      signal
     });
 
     if (res.ok) {
       const data = await res.json();
+      const latencyMs = Math.round(performance.now() - startTime);
       return {
         reply: data.reply,
         model: data.model,
+        mode: data.mode || mode,
+        latencyMs,
+        thought: `Synthesized curriculum context and formed ${mode} plan via ${data.model} in ${(latencyMs / 1000).toFixed(1)}s`,
         usage: data.usage,
         timestamp: data.timestamp,
         source: 'backend'
       };
     }
-  } catch {
+  } catch (err: unknown) {
+    if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+      throw err;
+    }
     console.warn('[AI Service] Backend unreachable, falling back to direct client call');
   }
 
   // 2. Direct Fallback
-  const direct = await callGeminiDirectly(message, history);
+  const direct = await callGeminiDirectly(message, history, mode, undefined, signal);
+  const latencyMs = Math.round(performance.now() - startTime);
   return {
     reply: direct.text,
     model: direct.model,
+    mode,
+    latencyMs,
+    thought: `Connected directly to Google Gemini API via ${direct.model} (${mode} mode) in ${(latencyMs / 1000).toFixed(1)}s`,
     source: 'client-direct',
     timestamp: new Date().toISOString()
   };
+}
+
+/**
+ * Evaluate user's answer against a practice challenge
+ */
+export async function evaluateUserAnswer(
+  question: string,
+  userAnswer: string,
+  context: Record<string, unknown> = {}
+): Promise<AIEvaluationResponse> {
+  // 1. Try Backend
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/ai/evaluate-answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, userAnswer, context })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        isCorrect: data.isCorrect,
+        status: data.status || (data.isCorrect ? 'correct' : 'partial'),
+        score: data.score ?? (data.isCorrect ? 100 : 70),
+        verdictTitle: data.verdictTitle || (data.isCorrect ? 'Solution Verified!' : 'Needs Adjustment'),
+        feedback: data.feedback,
+        errorsIdentified: data.errorsIdentified || [],
+        optimalSolution: data.optimalSolution || '-- Optimal code solution',
+        explanation: data.explanation || '',
+        model: data.model,
+        source: 'backend'
+      };
+    }
+  } catch {
+    console.warn('[AI Service] Backend unreachable for evaluation, falling back to direct client call');
+  }
+
+  // 2. Direct Fallback
+  const evalPrompt = `You are the SkillOS Practice Evaluator and Technical Mentor.
+A learner was given this practice challenge:
+"""
+${question}
+"""
+
+The learner submitted this answer or code:
+"""
+${userAnswer}
+"""
+
+Evaluate the answer. Return STRICT RAW JSON format with NO markdown wrapping, NO \`\`\`json code fence:
+{
+  "isCorrect": true,
+  "status": "correct",
+  "score": 100,
+  "verdictTitle": "Short verdict title",
+  "feedback": "Concise, constructive explanation of whether the solution works and why.",
+  "errorsIdentified": [],
+  "optimalSolution": "The cleanest, optimal query or code snippet demonstrating industry best practices.",
+  "explanation": "Why this solution is optimal, noting edge cases or performance."
+}`;
+
+  const direct = await callGeminiDirectly(evalPrompt, [], 'learning', 'You are an accurate, strict, but encouraging technical coding evaluator. Respond with raw JSON only.');
+  
+  try {
+    const cleanJson = direct.text.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    return {
+      isCorrect: Boolean(parsed.isCorrect),
+      status: parsed.status || (parsed.isCorrect ? 'correct' : 'partial'),
+      score: parsed.score ?? (parsed.isCorrect ? 100 : 70),
+      verdictTitle: parsed.verdictTitle || (parsed.isCorrect ? 'Solution Verified!' : 'Needs Adjustment'),
+      feedback: parsed.feedback || direct.text,
+      errorsIdentified: parsed.errorsIdentified || [],
+      optimalSolution: parsed.optimalSolution || '-- Optimal solution',
+      explanation: parsed.explanation || '',
+      model: direct.model,
+      source: 'client-direct'
+    };
+  } catch {
+    const isLikelyCorrect = direct.text.toLowerCase().includes('correct') && !direct.text.toLowerCase().includes('incorrect');
+    return {
+      isCorrect: isLikelyCorrect,
+      status: isLikelyCorrect ? 'correct' : 'partial',
+      score: isLikelyCorrect ? 100 : 70,
+      verdictTitle: isLikelyCorrect ? 'Solution Verified!' : 'Needs Revision',
+      feedback: direct.text,
+      errorsIdentified: [],
+      optimalSolution: '-- Optimal solution provided in feedback',
+      explanation: 'See feedback for full breakdown.',
+      model: direct.model,
+      source: 'client-direct'
+    };
+  }
 }
 
 /**

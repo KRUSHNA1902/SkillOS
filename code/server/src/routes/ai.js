@@ -3,39 +3,72 @@ import express from 'express';
 const router = express.Router();
 
 const GEMINI_MODELS = [
-  'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-2.5-flash',
 ];
 
-const SKILLOS_SYSTEM_PROMPT = `You are SkillOS AI Assistant — an intelligent learning copilot and curriculum strategist built into SkillOS.
-SkillOS is a Personal Learning & Progress Management Platform connecting three pillars:
-1. What you PLAN to learn: Hierarchical roadmaps (Areas -> Paths -> Modules -> Topics).
-2. What you ACTUALLY study: Dated daily sessions with duration, category, and outcome logs.
-3. What you COMPLETE: 7-state topic progression (Not Started, In Progress, Practised, Completed, Needs Revision, Mastered, Blocked).
+const MODE_PROMPTS = {
+  learning: `You are the SkillOS Learning Copilot — an expert pedagogical tutor and problem-solving mentor.
+Your mission is to help the user master technical topics (SQL, Python, Power BI, Finance, AI, etc.) through deep, clear explanations and interactive practice.
+When explaining any concept or solving any problem:
+1. Provide an intuitive, step-by-step conceptual breakdown.
+2. Provide clean, well-commented code/query examples.
+3. Highlight key rules, common mistakes, and edge cases.
+4. End your response with a structured practice challenge formatted clearly as:
+---
+### 🎯 Practice Challenge: [Challenge Title]
+**Problem Statement:** [Clear description of what query, function, or calculation to write]
+**Sample Input / Schema:**
+\`\`\`sql
+[Schema or sample records]
+\`\`\`
+**Expected Output:** [Expected result table or return value]
+**Constraint:** [e.g. Must use window function, no subqueries]
+**Hint:** [Subtle hint to guide the learner]
+---`,
 
-The platform's primary learning areas include:
-- SQL & Databases: Complex Queries, Joins, Aggregations, Subqueries, CTEs, Window Functions, Indexing.
-- Python & Data Analytics: Fundamentals, Pandas, NumPy, Data Wrangling, Exploratory Data Analysis, Visualization.
-- Power BI: Data Modeling, Star Schema, DAX Formulas, Power Query M, Interactive Dashboards.
-- Finance & Financial Markets: Financial Statements, Ratios, DCF Valuation, Financial Modeling.
-- AI & Cloud: Generative AI, Prompt Engineering, LLM integrations, Cloud Automation.
-- Portfolio Projects: End-to-end data pipelines, ETL, real-world analytical dashboards.
+  planning: `You are the SkillOS Curriculum & Workflow Architect.
+Your mission is to design actionable, chronologically sequenced learning workflows and study execution roadmaps.
+When asked about learning a skill, transitioning careers, or preparing for projects:
+1. Provide a high-level Workflow Strategy & Architecture.
+2. Break it down into structured Chronological Phases (e.g. Phase 1: Foundation, Phase 2: Core Patterns, Phase 3: Advanced Optimization & Capstone).
+3. For each Phase provide:
+   - Specific Topics to master (aligned with SkillOS's 7-state topic progression: Not Started, In Progress, Practised, Completed, Mastered).
+   - Estimated daily/weekly study hours.
+   - Milestone Practice Exercises or Artifacts.
+   - Verification Checkpoint (criteria to verify mastery).
+4. Provide a Daily Study Routine (e.g., 45m Theory, 45m Hands-on Coding/Drills, 15m Log & Reflection).
+Format with clear markdown tables, bullet points, and milestone badges.`,
 
-Always format your responses with clean GitHub-flavored markdown, bullet points, and code blocks with syntax highlighting when providing code. Be structured, practical, and focused on helping the learner master concepts.`;
+  notes: `You are the SkillOS Knowledge Synthesizer & Note Architect.
+Your mission is to synthesize learning and planning into comprehensive, high-yield study notes with an explicit chronological timeline.
+Format every note with:
+1. **Executive Summary**: Core definition and purpose in 2-3 sentences.
+2. **⏳ Chronological Concept Timeline**: Ordered progression of how this topic is mastered (from foundational prerequisites -> core syntax -> intermediate logic -> advanced optimizations -> production readiness).
+3. **⚡ Syntax & Formulas Cheatsheet**: Clean, copy-pasteable code blocks, query templates, or mathematical formulas.
+4. **⚠️ Common Pitfalls & Anti-Patterns**: What errors learners frequently make and the correct patterns.
+5. **🧠 Spaced Repetition Recall Questions**: 3-4 key questions to test memory later.
+Format with clean GitHub-flavored markdown, callouts, and code blocks.`
+};
 
 /**
  * Call Gemini API with automatic fallback across models
  */
-async function callGemini(contents, systemInstruction = SKILLOS_SYSTEM_PROMPT) {
+async function callGemini(contents, systemInstruction = SKILLOS_SYSTEM_PROMPT, requestedModel = null) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured on the server');
   }
 
+  const modelOrder = requestedModel
+    ? [requestedModel, ...GEMINI_MODELS.filter(m => m !== requestedModel)]
+    : GEMINI_MODELS;
+
   let lastError = null;
 
-  for (const model of GEMINI_MODELS) {
+  for (const model of modelOrder) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const payload = {
@@ -59,7 +92,7 @@ async function callGemini(contents, systemInstruction = SKILLOS_SYSTEM_PROMPT) {
         const errorData = await response.json().catch(() => ({}));
         const status = response.status;
         // If model unavailable or not found, try next model in fallback list
-        if (status === 503 || status === 404 || status === 429) {
+        if (status === 503 || status === 404 || status === 429 || (status === 400 && errorData?.error?.message?.toLowerCase()?.includes('model'))) {
           lastError = new Error(`Model ${model} returned ${status}: ${errorData?.error?.message || response.statusText}`);
           continue;
         }
@@ -113,7 +146,7 @@ router.get('/status', async (req, res) => {
  */
 router.post('/chat', async (req, res) => {
   try {
-    const { message, history = [], context = {} } = req.body;
+    const { message, history = [], context = {}, mode = 'learning', model: requestedModel } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Valid message string is required' });
@@ -137,7 +170,7 @@ router.post('/chat', async (req, res) => {
     // Add current user prompt (including context if provided)
     let userPrompt = message;
     if (context && Object.keys(context).length > 0) {
-      userPrompt = `[Context: Active workspace tab: ${context.activeTab || 'General'}, Focus Area: ${context.focusArea || 'Data Engineering & Analytics'}]\n\n${message}`;
+      userPrompt = `[Context: Active mode: ${mode}, Focus: ${context.focusArea || 'Data Engineering & Analytics'}]\n\n${message}`;
     }
 
     contents.push({
@@ -145,11 +178,13 @@ router.post('/chat', async (req, res) => {
       parts: [{ text: userPrompt }]
     });
 
-    const result = await callGemini(contents);
+    const systemPrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.learning;
+    const result = await callGemini(contents, systemPrompt, requestedModel);
 
     res.json({
       reply: result.text,
       model: result.model,
+      mode,
       usage: result.usage,
       timestamp: new Date().toISOString()
     });
@@ -158,6 +193,87 @@ router.post('/chat', async (req, res) => {
     res.status(500).json({
       error: error.message || 'Internal AI processing error',
       modelFallbackAttempted: true
+    });
+  }
+});
+
+/**
+ * POST /api/ai/evaluate-answer
+ * Evaluates user's answer to a practice challenge
+ */
+router.post('/evaluate-answer', async (req, res) => {
+  try {
+    const { question, userAnswer, context = {}, model: requestedModel } = req.body;
+
+    if (!question || !userAnswer) {
+      return res.status(400).json({ error: 'question and userAnswer are required' });
+    }
+
+    const evaluationPrompt = `You are the SkillOS Practice Evaluator and Technical Mentor.
+A learner was given this practice challenge or problem:
+\"\"\"
+${question}
+\"\"\"
+
+The learner submitted this answer or code:
+\"\"\"
+${userAnswer}
+\"\"\"
+
+Please evaluate the answer accurately, fairly, and constructively.
+Return your evaluation in STRICT RAW JSON format with NO markdown wrapper, NO \`\`\`json code fence, and NO preamble, using exactly this JSON structure:
+{
+  "isCorrect": true,
+  "status": "correct",
+  "score": 100,
+  "verdictTitle": "Short praise or concise title",
+  "feedback": "Concise, encouraging explanation of whether the solution works and why.",
+  "errorsIdentified": [],
+  "optimalSolution": "The cleanest, optimal query or code snippet demonstrating industry best practices.",
+  "explanation": "Why this solution is optimal, noting edge cases, time/space complexity, or performance."
+}
+
+Rules:
+- If completely right: "isCorrect": true, "status": "correct", "score": 90-100, "errorsIdentified": []
+- If partially right or misses edge cases: "isCorrect": false, "status": "partial", "score": 50-85, list specific errors in "errorsIdentified"
+- If wrong or syntax error: "isCorrect": false, "status": "incorrect", "score": 0-45, list specific errors in "errorsIdentified"
+- Ensure "optimalSolution" is valid code/query syntax.
+- Raw JSON only.`;
+
+    const contents = [{
+      role: 'user',
+      parts: [{ text: evaluationPrompt }]
+    }];
+
+    const result = await callGemini(contents, 'You are an accurate, strict, but encouraging technical coding and analytics evaluator. Respond with raw JSON only.', requestedModel);
+
+    let parsed;
+    try {
+      const cleanJson = result.text.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+      parsed = JSON.parse(cleanJson);
+    } catch {
+      const isLikelyCorrect = result.text.toLowerCase().includes('correct') && !result.text.toLowerCase().includes('incorrect');
+      parsed = {
+        isCorrect: isLikelyCorrect,
+        status: isLikelyCorrect ? 'correct' : 'partial',
+        score: isLikelyCorrect ? 100 : 70,
+        verdictTitle: isLikelyCorrect ? 'Solution Verified!' : 'Solution Needs Adjustment',
+        feedback: result.text,
+        errorsIdentified: [],
+        optimalSolution: '-- Optimal solution provided in feedback',
+        explanation: 'Review feedback for detailed conceptual breakdown.'
+      };
+    }
+
+    res.json({
+      ...parsed,
+      model: result.model,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[AI Evaluation Error]:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to evaluate answer'
     });
   }
 });

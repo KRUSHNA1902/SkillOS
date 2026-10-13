@@ -1,0 +1,63 @@
+================================================================================
+SKILLOS — PERSONAL LEARNING & PROGRESS MANAGEMENT PLATFORM
+PROJECT PLANNING & EVOLUTION LOG [DOCUMENT: 06]
+File: 06_task_operations_timeline_and_alert_architecture.txt
+Created: 2026-10-13
+Status: Advanced Task Operations, Timeline Roadmap, Deadlines, & Alert Engine
+================================================================================
+
+================================================================================
+VERSION TRACKING & CHANGELOG
+================================================================================
+[x] 01 — Baseline Planning, 3-Part Layout & Core Modules Specification
+[x] 02 — Deep Technical Architecture & Stack Mapping
+[x] 03 — Draggable Widget Grid Integration
+[x] 04 — Gemini AI Engine, Data Project Curriculum & Overall System Synthesis
+[x] 05 — Data Saving, Storage, and Viewing Architecture & Implementation
+[x] 06 — Task Operations, Chronological Delivery Timeline & Deadline Alert Engine (CURRENT)
+
+--------------------------------------------------------------------------------
+--- NEW & EXCLUSIVE IN THIS VERSION (06) ---
+--------------------------------------------------------------------------------
+1. Centralized Task Management Engine (TaskManagerProvider & useTaskManager):
+   - Backed by persistent browser storage (`localStorage`) with automated seed data fallback.
+   - Cross-workspace synchronization between Dashboard and dedicated Tasks workspace.
+   - Unified live metrics (Total, In Progress, Completed, Pending, Blocked, Urgent, Overdue, Due Today, Completion Rate).
+
+2. Rich Task Creation & Editing (TaskModal):
+   - Fast inline task addition for quick capture.
+   - Comprehensive task dialog supporting:
+     * Title with validation
+     * Category tagging (Frontend UI, Backend, Auth Pipeline, Security, AI Engine, DevOps, etc.)
+     * 4-Level Priority System (Urgent, High, Medium, Low) with visual chromatic badges
+     * ISO Target Deadline selector with dynamic +2h, Tonight, +24h, and +3d presets
+     * Multi-phase Timeline Stages (Planning, In Progress, Review, Completed, Backlog)
+     * Technical Notes & Scratchpad (documentation, acceptance criteria, checklists)
+     * Toggleable Deadline Alert Reminders
+
+3. Task Pruning & Deletion Operations ("Deleting Old"):
+   - Individual task deletion with interactive trash trigger.
+   - 1-Click "Clean Old Tasks" modal dialog: safely removes completed sprint tasks while preserving active and pending tasks.
+
+4. Chronological Delivery Timeline (TaskTimelineView):
+   - Dedicated "Timeline View" tab alongside standard "List View".
+   - Vertical milestone line with pulsing progress nodes grouped into:
+     * Overdue Milestones (high priority attention)
+     * Today's Delivery Window
+     * Tomorrow & Next 48 Hours
+     * Sprint Target Milestones (later this week)
+     * Backlog & Long-Term Roadmap
+     * Completed Milestone Archive
+
+5. Real-Time Deadline & Schedule Alert System (TaskAlertsBanner):
+   - Prominent notification alert bar at the top of the Tasks workspace and Dashboard.
+   - Automated detection of:
+     * Overdue tasks with elapsed duration badges
+     * Due today tasks with deadline countdowns
+     * Custom deadline alert reminders
+   - 1-Click Quick Actions directly from alerts: "Done" (instant completion), "+1 Day" (deadline extension), and "Dismiss".
+
+6. Priority & Notes Interaction:
+   - 1-Click priority cycling directly on task cards (Urgent -> High -> Medium -> Low).
+   - Expandable and inline markdown/code note drawers on task cards.
+================================================================================

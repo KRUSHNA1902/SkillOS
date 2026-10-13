@@ -6,19 +6,22 @@ import {
   BarChart3,
   TrendingUp,
   Cpu,
-  Send,
   RefreshCw,
   Copy,
   Check,
   BookOpen,
   Layers,
-  Bot,
-  User,
   Zap,
   FolderGit2,
-  Target,
   ListOrdered,
   FileText,
+  MessageSquareText,
+  FileBarChart,
+  Route,
+  ChevronDown,
+  GraduationCap,
+  Compass,
+  Bookmark,
 } from "lucide-react";
 import {
   sendAIChat,
@@ -26,11 +29,20 @@ import {
   generateAIRoadmap,
   checkAIStatus,
   AIChatMessage,
+  AIMode,
 } from "@/lib/ai-service";
+import { motion, AnimatePresence } from "motion/react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { ChatMessageItem, ChatMessage } from "./chat-message-item";
+import { ChatComposer } from "./chat-composer";
+import { BounceDots } from "@/components/ui/bounce-dots";
+import { useNotes } from "@/components/notes/note-context";
+import { NoteTrack } from "@/components/notes/note-types";
 
 interface AIAssistantViewProps {
   userName?: string;
-  initialTab?: "summary" | "chat" | "roadmap";
+  initialTab?: "chat" | "summary" | "roadmap";
 }
 
 const DATA_TRACKS = [
@@ -90,6 +102,12 @@ const DATA_TRACKS = [
   },
 ];
 
+const AI_NAV_TABS = [
+  { value: "chat", label: "Interactive Chat", icon: MessageSquareText },
+  { value: "summary", label: "Data Project Summary", icon: FileBarChart },
+  { value: "roadmap", label: "Roadmap Architect", icon: Route },
+] as const;
+
 const PRESET_SUMMARY = `# SkillOS Data Project & Curriculum Synthesis
 
 ### The Three Pillars of SkillOS
@@ -121,11 +139,12 @@ Powered by 8 relational tables:
 - \`skillos_goals\` — Target vs Actual study time and completion checkpoints
 - \`skillos_knowledge_notes\` — Markdown notes, code snippets, and cheatsheets`;
 
-export function AIAssistantView({ userName = "Learner", initialTab = "summary" }: AIAssistantViewProps) {
-  const [tab, setTab] = useState<"summary" | "chat" | "roadmap">(initialTab);
+export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: AIAssistantViewProps) {
+  const { addNote } = useNotes();
+  const [tab, setTab] = useState<"chat" | "summary" | "roadmap">(initialTab);
   const [status, setStatus] = useState<{ configured: boolean; model?: string; message: string }>({
     configured: true,
-    model: "gemini-3.5-flash-lite",
+    model: "gemini-3.8-flash",
     message: "Connecting...",
   });
 
@@ -136,16 +155,15 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
   const [copiedSummary, setCopiedSummary] = useState(false);
 
   // Chat State
-  const [messages, setMessages] = useState<Array<{ role: "user" | "model"; text: string; time: string }>>([
-    {
-      role: "model",
-      text: `Hello ${userName}! I'm your Gemini-powered SkillOS AI Assistant. I can summarize the overall data project, break down your curriculum, explain complex SQL or Python concepts, or craft custom study roadmaps. How can I help you today?`,
-      time: "Just now",
-    },
-  ]);
+  const [chatMode, setChatMode] = useState<AIMode>("learning");
+  const [savedNotesToast, setSavedNotesToast] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const lastUserPromptRef = useRef<string>("");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Roadmap State
   const [skillInput, setSkillInput] = useState("SQL Window Functions & CTEs");
@@ -155,13 +173,41 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
 
   useEffect(() => {
     checkAIStatus().then(setStatus);
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
+
+  // Track scroll position to show/hide "Scroll to bottom" button
+  const handleScroll = () => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    setShowScrollBottom(!isAtBottom);
+  };
+
+  const scrollToBottom = () => {
+    chatScrollRef.current?.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  };
 
   useEffect(() => {
     if (tab === "chat") {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      scrollToBottom();
     }
-  }, [messages, tab]);
+  }, [messages, sendingChat, tab]);
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setSendingChat(false);
+  };
 
   const handleGenerateSummary = async (trackName?: string) => {
     setLoadingSummary(true);
@@ -178,17 +224,28 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
     }
   };
 
-  const handleSendChat = async (presetPrompt?: string) => {
+  const handleSendChat = async (presetPrompt?: string, overrideMode?: AIMode) => {
     const textToSend = presetPrompt || inputMessage.trim();
     if (!textToSend || sendingChat) return;
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const activeMode = overrideMode || chatMode;
+    lastUserPromptRef.current = textToSend;
     setInputMessage("");
-    const newMsg = {
-      role: "user" as const,
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
       text: textToSend,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
-    setMessages((prev) => [...prev, newMsg]);
+
+    setMessages((prev) => [...prev, userMessage]);
     setSendingChat(true);
 
     try {
@@ -196,35 +253,92 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
         role: m.role,
         text: m.text,
       }));
-      const res = await sendAIChat(textToSend, chatHistory, {
-        activeTab: tab,
-        focusArea: selectedTrack || "Data Engineering & Analytics",
-      });
 
-      setMessages((prev) => [
-        ...prev,
+      const res = await sendAIChat(
+        textToSend,
+        chatHistory,
         {
-          role: "model",
-          text: res.reply,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          activeTab: tab,
+          focusArea: selectedTrack || "Data Engineering & Analytics",
         },
-      ]);
+        activeMode,
+        "gemini-3.8-flash",
+        controller.signal
+      );
+
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "model",
+        text: res.reply,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        mode: res.mode || activeMode,
+        thought: res.thought,
+        latencySeconds: res.latencyMs ? Number((res.latencyMs / 1000).toFixed(1)) : undefined,
+        modelName: res.model,
+        isStreaming: true, // triggers typewriter progressive reveal
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
       if (res.model) {
         setStatus((s) => ({ ...s, model: res.model }));
       }
     } catch (err: unknown) {
+      if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+        // User cancelled generation cleanly
+        return;
+      }
       const errorMsg = err instanceof Error ? err.message : "Failed to get response from AI";
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "model",
-          text: `⚠️ **Error communicating with Gemini**: ${errorMsg}`,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+      const errorMessage: ChatMessage = {
+        id: `err-${Date.now()}`,
+        role: "model",
+        text: `⚠️ **Unable to complete response**: ${errorMsg}\n\nPlease check your internet connection or verify the Gemini API key.`,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        modelName: status.model,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setSendingChat(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleSaveToNotes = (title: string, content: string) => {
+    const trackMap: Record<string, NoteTrack> = {
+      sql: "SQL & Databases",
+      python: "Python & Analytics",
+      powerbi: "Power BI & Semantic Modeling",
+      finance: "Finance & Markets",
+      ai: "AI & Cloud Architecture",
+      projects: "Projects & Portfolio",
+    };
+    const targetTrack: NoteTrack = selectedTrack
+      ? trackMap[selectedTrack] || "General"
+      : "AI & Cloud Architecture";
+
+    const codeBlockMatch = content.match(/```(\w+)?\n([\s\S]*?)```/);
+    const codeSnippet = codeBlockMatch ? codeBlockMatch[2].trim() : undefined;
+
+    addNote({
+      title: title.slice(0, 80) || "AI Study Note",
+      area: targetTrack,
+      tags: ["AI-Generated", targetTrack.split(" ")[0]],
+      contentMarkdown: content,
+      codeSnippet,
+      pinned: false,
+    });
+
+    setSavedNotesToast(`Saved "${title.slice(0, 30)}..." to Knowledge Notes!`);
+    setTimeout(() => setSavedNotesToast(null), 3500);
+  };
+
+  const handleRegenerate = () => {
+    if (lastUserPromptRef.current && !sendingChat) {
+      handleSendChat(lastUserPromptRef.current);
+    }
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
   };
 
   const handleGenerateRoadmap = async () => {
@@ -250,82 +364,516 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background text-foreground">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-background text-foreground overflow-hidden selection:bg-primary/20">
       {/* Top Banner / AI Header */}
-      <div className="border-b border-border/40 bg-card/40 px-6 py-4 backdrop-blur-md">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="shrink-0 border-b border-border/60 bg-background/80 px-4 sm:px-6 py-3 backdrop-blur-md z-10">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between max-w-7xl mx-auto w-full">
           <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-tr from-amber-500/20 via-orange-500/20 to-primary/20 text-amber-400 border border-amber-500/30 shadow-inner">
-              <Sparkles className="size-5 animate-pulse" />
+            <div className="grid size-9 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-inner">
+              <Sparkles className="size-4.5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                <h1 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
                   SkillOS AI Assistant
                 </h1>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-mono text-emerald-300">
-                  <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  {status.model || "Gemini 3.5 Active"}
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-mono text-amber-700 dark:text-amber-300">
+                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Gemini 3.8 Flash Active
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Powered by Google Gemini • Curriculum Strategy & Data Project Center
+              <p className="text-[11px] text-muted-foreground hidden sm:block">
+                ChatGPT & Gemini-Grade Conversational Intelligence & Curriculum Center
               </p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-muted/30 p-1">
-            <button
-              type="button"
-              onClick={() => setTab("summary")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                tab === "summary"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              <FileText className="size-3.5" />
-              <span>Data Project Summary</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("chat")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                tab === "chat"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              <Bot className="size-3.5" />
-              <span>Interactive Copilot</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("roadmap")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                tab === "roadmap"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              <Target className="size-3.5" />
-              <span>Roadmap Architect</span>
-            </button>
-          </div>
+          {/* Navigation Tabs (Tabs-10 Style Animated Pill Bar) */}
+          <Tabs
+            value={tab}
+            onValueChange={(val) => setTab(val as "chat" | "summary" | "roadmap")}
+            className="flex items-center"
+          >
+            <TabsList className="h-auto! gap-1 rounded-full bg-muted/80 border border-border/80 p-1 flex items-center shadow-inner">
+              {AI_NAV_TABS.map(({ value: itemValue, label, icon: Icon }) => {
+                const isActive = tab === itemValue;
+                return (
+                  <TabsTrigger
+                    key={itemValue}
+                    value={itemValue}
+                    title={label}
+                    className={cn(
+                      "rounded-full border-none py-1.5 text-xs font-medium cursor-pointer transition-all duration-300 flex items-center justify-center",
+                      isActive
+                        ? "px-3.5 bg-background text-foreground shadow-sm font-medium"
+                        : "px-2.5 text-muted-foreground hover:text-foreground hover:bg-background/60",
+                    )}
+                  >
+                    <Icon className="size-3.5 shrink-0" />
+                    <AnimatePresence initial={false}>
+                      {isActive && (
+                        <motion.span
+                          initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                          animate={{ width: "auto", opacity: 1, marginLeft: 6 }}
+                          exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                          className="overflow-hidden whitespace-nowrap text-xs font-medium inline-block"
+                        >
+                          {label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
-      {/* Main Tab Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        {/* TAB 1: DATA PROJECT SUMMARY */}
-        {tab === "summary" && (
+      {/* =========================================================================
+          TAB 1: FULLSCREEN CHAT EXPERIENCE (ChatGPT & Gemini Grade)
+          ========================================================================= */}
+      {tab === "chat" && (
+        <div className="flex-1 flex flex-col h-full min-h-0 relative overflow-hidden bg-background">
+          {/* Interactive Topic Quick-Selector Bar for Notes Mode */}
+          {chatMode === "notes" && (
+            <div className="shrink-0 bg-card border-b border-border/60 px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto z-10">
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-300 shrink-0 flex items-center gap-1">
+                <Bookmark className="size-3 text-emerald-500" />
+                Generate Notes for:
+              </span>
+              {[
+                "SQL Window Functions",
+                "Python Pandas Pipeline",
+                "Power BI DAX Star Schema",
+                "3-Statement Financial Model",
+                "PostgreSQL Relational Schema",
+                "Gemini Multimodal Pipelines",
+              ].map((topic) => (
+                <button
+                  key={topic}
+                  type="button"
+                  onClick={() =>
+                    handleSendChat(
+                      `Generate comprehensive timeline notes and syntax cheatsheet for "${topic}".`,
+                      "notes"
+                    )
+                  }
+                  className="shrink-0 text-xs rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors cursor-pointer"
+                >
+                  + {topic}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Floating Saved Note Toast */}
+          {savedNotesToast && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-card/95 px-4 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+              <Check className="size-3.5 text-emerald-500" />
+              <span>{savedNotesToast}</span>
+            </div>
+          )}
+
+          {/* Scrollable Message Viewport across 100% of the canvas */}
+          <div
+            ref={chatScrollRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 bg-background"
+          >
+            <div className="max-w-3xl lg:max-w-4xl mx-auto w-full space-y-6 pb-6">
+              {/* EMPTY STATE HERO: DYNAMIC PER MODE */}
+              {messages.length === 0 ? (
+                <div className="py-10 sm:py-16 flex flex-col items-center text-center space-y-6">
+                  {/* Mode-Specific Hero Avatar */}
+                  <div
+                    className={`grid size-16 place-items-center rounded-3xl border shadow-xl ${
+                      chatMode === "learning"
+                        ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 shadow-blue-500/5"
+                        : chatMode === "planning"
+                        ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 shadow-cyan-500/5"
+                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-emerald-500/5"
+                    }`}
+                  >
+                    {chatMode === "learning" ? (
+                      <GraduationCap className="size-8" />
+                    ) : chatMode === "planning" ? (
+                      <Compass className="size-8" />
+                    ) : (
+                      <FileText className="size-8" />
+                    )}
+                  </div>
+
+                  <div className="space-y-2 max-w-xl">
+                    <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
+                      {chatMode === "learning"
+                        ? `Hello, ${userName} • Learning Copilot`
+                        : chatMode === "planning"
+                        ? `Hello, ${userName} • Workflow Architect`
+                        : `Hello, ${userName} • Timeline Notes`}
+                    </h2>
+                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+                      {chatMode === "learning" &&
+                        "Ask any question, request step-by-step problem explanations, and solve hands-on practice challenges with instant in-chat AI grading."}
+                      {chatMode === "planning" &&
+                        "Design structured, milestone-driven learning workflows, study timelines, weekly hour allocations, and project execution phases."}
+                      {chatMode === "notes" &&
+                        "Synthesize learning and planning into detailed study notes featuring a chronological concept timeline, cheatsheet syntax, and common pitfalls."}
+                    </p>
+                  </div>
+
+                  {/* 4 Mode-Specific Starter Cards (2x2 Grid) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left mt-4">
+                    {chatMode === "learning" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Explain SQL Window Functions (ROW_NUMBER, RANK, DENSE_RANK, LEAD, LAG) and provide a hands-on practice challenge."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                              <Database className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                              SQL Window Functions & Practice
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Master ROW_NUMBER, RANK, LEAD, LAG and test your answer in the embedded workspace.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Explain how to build a clean vectorized data transformation pipeline using Python and Pandas, and give me a practice problem."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <Code2 className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              Pandas Pipeline & Practice Drill
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Vectorized operations, data cleaning, and write code to be evaluated live.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Explain how CALCULATE modifies filter context in Power BI and provide a DAX practice challenge."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                              <BarChart3 className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                              Power BI DAX Filter Context Drill
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Filter modification, context transition, and practical DAX measure challenge.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Walk me through building a 3-Statement Financial Model and DCF Valuation, and give me a valuation practice exercise."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                              <TrendingUp className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                              Financial Modeling & DCF Drill
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Integrated financial statements, WACC calculation, and cash flow exercise.
+                          </p>
+                        </button>
+                      </>
+                    )}
+
+                    {chatMode === "planning" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Design a 4-week step-by-step learning workflow to master SQL from complex joins to window functions and query optimization."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                              <Database className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                              4-Week SQL Mastery Workflow
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Phase-by-phase timeline, daily hour budgets, and verifiable milestones.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Create a 6-week curriculum and study workflow to transition into Data Engineering with weekly milestone deliverables."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                              <Code2 className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                              6-Week Data Engineering Roadmap
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Python, SQL pipelines, orchestration, and production portfolio projects.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Plan an end-to-end 3-week sprint workflow for building an executive sales analytics dashboard in Power BI."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                              <BarChart3 className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                              Power BI Dashboard Project Sprint
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Star schema modeling, DAX measure creation, and visual storytelling.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Create a 30-day workflow roadmap for financial statement modeling, DCF valuation, and technical interview preparation."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                              <TrendingUp className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                              30-Day Financial Analyst Plan
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Core accounting, three-statement linking, sensitivity tables, and valuation.
+                          </p>
+                        </button>
+                      </>
+                    )}
+
+                    {chatMode === "notes" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Generate comprehensive timeline notes and syntax cheatsheet for SQL Window Functions (ROW_NUMBER, RANK, LEAD, LAG)."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <Database className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              Timeline Notes: SQL Window Functions
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Chronological concept progression, syntax cheatsheet, and common join pitfalls.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Generate detailed timeline notes, method cheatsheet, and common pitfalls for Pandas data manipulation & cleaning."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <Code2 className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              Timeline Notes: Python & Pandas
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Wrangling timeline, vectorized methods, memory tips, and recall checklist.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Generate structured timeline notes, relationship rules, and DAX cheatsheet for Power BI Star Schema design."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <BarChart3 className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              Timeline Notes: Star Schema & DAX
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Fact vs Dimension rules, filter direction, time intelligence, and traps.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendChat(
+                              "Generate timeline notes, linking formulas, and key financial ratios for 3-statement financial modeling and DCF."
+                            )
+                          }
+                          className="group rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-md text-foreground cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <TrendingUp className="size-4" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              Timeline Notes: Financial Valuation
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                            Chronological statement links, ratio cheat sheet, and DCF formulas.
+                          </p>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* MESSAGE STREAM */
+                messages.map((msg, index) => (
+                  <ChatMessageItem
+                    key={msg.id}
+                    message={msg}
+                    onRegenerate={handleRegenerate}
+                    onSaveToNotes={handleSaveToNotes}
+                    isLatestAssistant={
+                      msg.role === "model" && index === messages.length - 1
+                    }
+                  />
+                ))
+              )}
+
+              {/* Waiting / Thinking Indicator: Clean still logo with BounceDots */}
+              {sendingChat && (
+                <div className="flex items-center gap-3.5 py-1">
+                  <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-sm">
+                    <Sparkles className="size-4" />
+                  </div>
+                  <div className="flex items-center px-1">
+                    <BounceDots />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Floating Scroll to Bottom Button */}
+          {showScrollBottom && (
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              className="absolute bottom-24 right-6 sm:right-12 z-20 grid size-9 place-items-center rounded-full border border-border/80 bg-card text-foreground shadow-xl backdrop-blur-md hover:bg-muted transition-all cursor-pointer"
+              title="Scroll to bottom"
+            >
+              <ChevronDown className="size-4" />
+            </button>
+          )}
+
+          {/* Docked Fixed Bottom Composer - Seamless single screen without dividing line */}
+          <div className="shrink-0 z-10 bg-gradient-to-t from-background via-background/95 to-transparent pt-2 pb-5 px-4 sm:px-6">
+            <div className="max-w-3xl lg:max-w-4xl mx-auto w-full">
+              <ChatComposer
+                input={inputMessage}
+                onChange={setInputMessage}
+                onSubmit={() => handleSendChat()}
+                onStop={handleStopGeneration}
+                onClear={handleClearChat}
+                isGenerating={sendingChat}
+                modelName="gemini-3.8-flash"
+                hasMessages={messages.length > 0}
+                mode={chatMode}
+                onModeChange={setChatMode}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 2: DATA PROJECT SUMMARY VIEW
+          ========================================================================= */}
+      {tab === "summary" && (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background">
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Quick Answer Banner */}
-            <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 backdrop-blur-sm">
+            <div className="rounded-2xl border border-border/80 bg-card p-5 backdrop-blur-sm shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">
                     <BookOpen className="size-3.5" />
                     Overall Data Project & Architecture
                   </div>
@@ -342,7 +890,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                     type="button"
                     onClick={() => handleGenerateSummary(selectedTrack || undefined)}
                     disabled={loadingSummary}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                   >
                     <RefreshCw className={`size-3.5 ${loadingSummary ? "animate-spin" : ""}`} />
                     <span>{loadingSummary ? "Synthesizing with Gemini..." : "Refresh AI Summary"}</span>
@@ -350,9 +898,9 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                   <button
                     type="button"
                     onClick={() => handleCopy(summaryText)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
-                    {copiedSummary ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+                    {copiedSummary ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
                     <span>{copiedSummary ? "Copied" : "Copy"}</span>
                   </button>
                 </div>
@@ -361,37 +909,37 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
 
             {/* 4 Architecture Pillars Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-border/60 bg-card/50 p-4">
+              <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Core Tracks</span>
-                  <Database className="size-4 text-blue-400" />
+                  <Database className="size-4 text-blue-500 dark:text-blue-400" />
                 </div>
                 <div className="text-2xl font-bold mt-1 text-foreground">6 Areas</div>
                 <p className="text-[11px] text-muted-foreground mt-1">SQL, Python, Power BI, Finance, AI, Projects</p>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-card/50 p-4">
+              <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Progression States</span>
-                  <Layers className="size-4 text-amber-400" />
+                  <Layers className="size-4 text-amber-500 dark:text-amber-400" />
                 </div>
                 <div className="text-2xl font-bold mt-1 text-foreground">7 States</div>
                 <p className="text-[11px] text-muted-foreground mt-1">Not Started → In Progress → Mastered</p>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-card/50 p-4">
+              <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Database Schema</span>
-                  <Code2 className="size-4 text-emerald-400" />
+                  <Code2 className="size-4 text-emerald-500 dark:text-emerald-400" />
                 </div>
                 <div className="text-2xl font-bold mt-1 text-foreground">8 Tables</div>
                 <p className="text-[11px] text-muted-foreground mt-1">PostgreSQL + Supabase with RLS</p>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-card/50 p-4">
+              <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Tracking Rule</span>
-                  <Zap className="size-4 text-rose-400" />
+                  <Zap className="size-4 text-rose-500 dark:text-rose-400" />
                 </div>
                 <div className="text-2xl font-bold mt-1 text-foreground">Immutable Logs</div>
                 <p className="text-[11px] text-muted-foreground mt-1">Separate reading from actual coding</p>
@@ -402,7 +950,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <ListOrdered className="size-4 text-primary" />
+                  <ListOrdered className="size-4 text-cyan-600 dark:text-cyan-400" />
                   Specialized Learning Tracks
                 </h3>
                 <span className="text-xs text-muted-foreground">Click a track to focus AI synthesis</span>
@@ -419,21 +967,21 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                         setSelectedTrack(newSelection);
                         handleGenerateSummary(newSelection || undefined);
                       }}
-                      className={`group rounded-2xl border p-4 transition-all cursor-pointer bg-card/40 hover:bg-card/70 ${
+                      className={`group rounded-2xl border p-4 transition-all cursor-pointer bg-card hover:bg-muted/40 shadow-sm ${
                         isSelected
-                          ? "border-primary ring-1 ring-primary/40 shadow-lg shadow-primary/5"
-                          : "border-border/60 hover:border-border"
+                          ? "border-cyan-500 ring-1 ring-cyan-500/40 shadow-md"
+                          : "border-border/80 hover:border-border"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className={`p-2.5 rounded-xl border bg-gradient-to-br ${track.color}`}>
                           <Icon className="size-4.5" />
                         </div>
-                        <span className="text-[10px] uppercase font-mono font-semibold tracking-wider text-muted-foreground rounded-full border border-border/60 px-2 py-0.5 bg-muted/40">
+                        <span className="text-[10px] uppercase font-mono font-semibold tracking-wider text-muted-foreground rounded-full border border-border/80 px-2 py-0.5 bg-muted/60">
                           {track.badge}
                         </span>
                       </div>
-                      <h4 className="font-semibold text-sm text-foreground mt-3 group-hover:text-primary transition-colors">
+                      <h4 className="font-semibold text-sm text-foreground mt-3 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                         {track.name}
                       </h4>
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
@@ -443,7 +991,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                         {track.topics.slice(0, 3).map((topic) => (
                           <span
                             key={topic}
-                            className="rounded-md border border-border/40 bg-muted/30 px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono"
+                            className="rounded-md border border-border/80 bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono"
                           >
                             {topic}
                           </span>
@@ -461,15 +1009,15 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
             </div>
 
             {/* Executive AI Synthesis Text Container */}
-            <div className="rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur-sm">
-              <div className="flex items-center justify-between pb-4 border-b border-border/40 mb-4">
+            <div className="rounded-2xl border border-border/80 bg-card p-6 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center justify-between pb-4 border-b border-border/60 mb-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-amber-400" />
+                  <Sparkles className="size-4 text-amber-500 dark:text-amber-400" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
                     Comprehensive Executive Summary
                   </span>
                   {selectedTrack && (
-                    <span className="text-xs rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-primary">
+                    <span className="text-xs rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-cyan-600 dark:text-cyan-300">
                       Focus: {selectedTrack}
                     </span>
                   )}
@@ -481,7 +1029,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
 
               {loadingSummary ? (
                 <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                  <RefreshCw className="size-6 text-primary animate-spin" />
+                  <RefreshCw className="size-6 text-cyan-500 dark:text-cyan-400 animate-spin" />
                   <p className="text-sm font-medium text-foreground">
                     Gemini AI is analyzing project architecture & curriculum...
                   </p>
@@ -490,128 +1038,24 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                   </p>
                 </div>
               ) : (
-                <div className="prose prose-invert max-w-none text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground/90 space-y-4">
+                <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground space-y-4">
                   {summaryText}
                 </div>
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* TAB 2: INTERACTIVE AI COPILOT (CHAT) */}
-        {tab === "chat" && (
-          <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-14rem)] min-h-[500px]">
-            {/* Quick Prompt Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 shrink-0 no-scrollbar">
-              <span className="text-[11px] font-medium text-muted-foreground shrink-0 flex items-center gap-1">
-                <Zap className="size-3 text-amber-400" />
-                Quick Prompts:
-              </span>
-              {[
-                "Summarise the overall data project and related things",
-                "Explain SQL Window Functions with practical examples",
-                "How does SkillOS topic progression state work?",
-                "Create a 4-week Python & Pandas study schedule",
-                "Difference between Power BI DAX and Power Query M",
-              ].map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => handleSendChat(chip)}
-                  disabled={sendingChat}
-                  className="shrink-0 rounded-full border border-border/80 bg-card/60 px-3 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer whitespace-nowrap"
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-
-            {/* Chat Message Scroll Area */}
-            <div className="flex-1 overflow-y-auto space-y-4 p-4 rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm">
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={`flex items-start gap-3 ${
-                    m.role === "user" ? "flex-row-reverse" : "flex-row"
-                  }`}
-                >
-                  <div
-                    className={`grid size-8 shrink-0 place-items-center rounded-xl text-xs font-semibold ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-gradient-to-tr from-amber-500/20 via-orange-500/20 to-primary/20 text-amber-400 border border-amber-500/30"
-                    }`}
-                  >
-                    {m.role === "user" ? <User className="size-4" /> : <Bot className="size-4" />}
-                  </div>
-
-                  <div
-                    className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border/60 bg-card/70 text-foreground"
-                    }`}
-                  >
-                    <div className="whitespace-pre-wrap font-sans">{m.text}</div>
-                    <div
-                      className={`text-[10px] mt-2 font-mono ${
-                        m.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
-                      }`}
-                    >
-                      {m.time}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {sendingChat && (
-                <div className="flex items-start gap-3">
-                  <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted/60 text-amber-400 border border-amber-500/30">
-                    <Sparkles className="size-4 animate-spin" />
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-card/70 p-4 text-xs text-muted-foreground flex items-center gap-2">
-                    <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
-                    Gemini AI is reasoning and composing response...
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Input Form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendChat();
-              }}
-              className="mt-3 flex items-center gap-2"
-            >
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask Gemini about data tracks, study methods, SQL, Python, Power BI..."
-                disabled={sendingChat}
-                className="flex-1 rounded-xl border border-border/80 bg-card/60 px-4 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={!inputMessage.trim() || sendingChat}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs sm:text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
-              >
-                <Send className="size-3.5" />
-                <span className="hidden sm:inline">Send</span>
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* TAB 3: ROADMAP ARCHITECT */}
-        {tab === "roadmap" && (
+      {/* =========================================================================
+          TAB 3: ROADMAP ARCHITECT VIEW
+          ========================================================================= */}
+      {tab === "roadmap" && (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background">
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-sm">
+            <div className="rounded-2xl border border-border/80 bg-card p-6 backdrop-blur-sm shadow-sm">
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <Target className="size-5 text-primary" />
+                <Route className="size-5 text-cyan-600 dark:text-cyan-400" />
                 Custom Learning Roadmap Generator
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
@@ -634,7 +1078,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                   <select
                     value={weeksInput}
                     onChange={(e) => setWeeksInput(Number(e.target.value))}
-                    className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value={2}>2 Weeks (Crash Sprint)</option>
                     <option value={4}>4 Weeks (Standard Mastery)</option>
@@ -649,7 +1093,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                   type="button"
                   onClick={handleGenerateRoadmap}
                   disabled={generatingRoadmap || !skillInput.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                 >
                   <Sparkles className={`size-3.5 ${generatingRoadmap ? "animate-spin" : ""}`} />
                   <span>{generatingRoadmap ? "Designing Curriculum..." : "Generate Roadmap"}</span>
@@ -659,10 +1103,10 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
 
             {/* Roadmap Output */}
             {roadmapResult && (
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur-sm">
-                <div className="flex items-center justify-between pb-3 border-b border-border/40 mb-4">
+              <div className="rounded-2xl border border-border/80 bg-card p-6 backdrop-blur-sm shadow-sm">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-4">
                   <div className="flex items-center gap-2">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-emerald-500" />
                     <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
                       Curriculum: {skillInput} ({weeksInput} Weeks)
                     </span>
@@ -670,20 +1114,20 @@ export function AIAssistantView({ userName = "Learner", initialTab = "summary" }
                   <button
                     type="button"
                     onClick={() => handleCopy(roadmapResult)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-xs text-foreground hover:bg-muted cursor-pointer transition-colors"
                   >
                     <Copy className="size-3" />
                     <span>Copy</span>
                   </button>
                 </div>
-                <div className="prose prose-invert max-w-none text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground/90">
+                <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground">
                   {roadmapResult}
                 </div>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

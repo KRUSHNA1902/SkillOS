@@ -7,6 +7,10 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Geist", "Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono: ["'Geist Mono'", "ui-monospace", "'SFMono-Regular'", "Menlo", "Monaco", "Consolas", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -41,6 +45,9 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        diffAdded: "hsl(var(--diff-added))",
+        diffRemoved: "hsl(var(--diff-removed))",
+        skill: "hsl(var(--skill))",
       },
       borderRadius: {
         lg: "var(--radius)",
