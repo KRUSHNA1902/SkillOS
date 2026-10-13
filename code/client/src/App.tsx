@@ -311,7 +311,10 @@ function App() {
                 userName={capitalizedName}
                 userEmail={user.email}
                 isDevUser={isDevUser}
+                onOpenAI={() => setActive("AI Assistant")}
               />
+            ) : active === "AI Assistant" ? (
+              <AIAssistantView userName={capitalizedName} />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
                 <div className="max-w-md space-y-3 rounded-2xl border border-border/60 bg-card/40 p-8 backdrop-blur-sm">

@@ -12,7 +12,6 @@ import {
   Check,
   BookOpen,
   Layers,
-  ArrowRight,
   Bot,
   User,
   Zap,

@@ -1,0 +1,127 @@
+================================================================================
+SKILLOS — PERSONAL LEARNING & PROGRESS MANAGEMENT PLATFORM
+PROJECT PLANNING & EVOLUTION LOG [DOCUMENT: 04]
+File: 04_gemini_ai_integration_and_data_summary.txt
+Created: 2026-10-13
+Status: AI Integration & Data Project Synthesis Phase
+================================================================================
+
+================================================================================
+VERSION TRACKING & CHANGELOG
+================================================================================
+[x] 01 — Baseline Planning, 3-Part Layout & Core Modules Specification
+[x] 02 — Deep Technical Architecture & Stack Mapping
+[x] 03 — Draggable Widget Grid Integration
+[x] 04 — Gemini AI Engine, Data Project Curriculum & Overall System Synthesis (CURRENT)
+
+--------------------------------------------------------------------------------
+--- NEW & EXCLUSIVE IN THIS VERSION (04) ---
+--------------------------------------------------------------------------------
+- Full integration of Google Gemini AI engine (using Gemini 3.5 Flash / Flash Lite).
+- Backend REST endpoints for AI capabilities:
+  * GET /api/ai/status — Verifies model health and active connection.
+  * POST /api/ai/chat — Interactive learning copilot with domain awareness.
+  * POST /api/ai/summarize-project — Comprehensive executive synthesis of the data project curriculum.
+  * POST /api/ai/generate-roadmap — Generates structured multi-week syllabi with topic trees and outcome checkpoints.
+- Client-side AI service (code/client/src/lib/ai-service.ts) with direct fallback protection.
+- Interactive AI Assistant workspace view (code/client/src/components/ai/ai-assistant-view.tsx) featuring:
+  1. Data Project Summary (comprehensive synthesis of all 6 learning areas, 7 progression states, and 8 database tables).
+  2. Interactive Gemini Copilot with quick prompts.
+  3. Custom Roadmap Architect.
+- Security: API keys protected in environment files (.env) ignored by Git.
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. EXECUTIVE SUMMARY: THE OVERALL DATA PROJECT & RELATED THINGS
+================================================================================
+
+SkillOS is structured around solving the primary pitfall of self-directed technical
+learning: treating passive consumption (videos, articles) as actual skill acquisition.
+
+SkillOS connects three core pillars:
+  1. What you PLAN to learn: Hierarchical roadmaps (Areas -> Paths -> Modules -> Topics).
+  2. What you ACTUALLY study: Dated daily sessions with duration, category, and outcome logs.
+  3. What you COMPLETE: 7-state topic progression (Not Started -> In Progress -> Practised -> Completed -> Needs Revision -> Mastered -> Blocked).
+
+--------------------------------------------------------------------------------
+THE 6 SPECIALIZED DATA & LEARNING TRACKS
+--------------------------------------------------------------------------------
+1. SQL & Databases:
+   - Focus: Relational modeling, indexing, query optimization, analytics.
+   - Core Modules: Complex Joins, Aggregation & HAVING, Subqueries, CTEs, Window Functions (ROW_NUMBER, RANK, LEAD, LAG).
+   - Mastery Benchmark: Writing multi-stage queries without subquery anti-patterns and optimizing execution plans.
+
+2. Python & Data Analytics:
+   - Focus: Programmatic data manipulation, wrangling, vectorization, exploratory analysis.
+   - Core Modules: Python fundamentals, Pandas (DataFrames, Groupby, Merges), NumPy vectorization, data cleaning & imputation, Seaborn/Matplotlib visualization.
+   - Mastery Benchmark: Transforming messy multi-source datasets into clean analysis pipelines.
+
+3. Power BI & Business Intelligence:
+   - Focus: Enterprise reporting, semantic modeling, DAX time-intelligence.
+   - Core Modules: Star Schema architecture (Fact vs Dimension tables), Power Query (M code), DAX Measures vs Calculated Columns, Time Intelligence (TOTALYTD, SAMEPERIODLASTYEAR), dynamic interactions.
+   - Mastery Benchmark: Designing robust data models that scale and answer business KPIs.
+
+4. Finance & Financial Markets:
+   - Focus: Fundamental analysis, financial statements, DCF valuations.
+   - Core Modules: Financial Statements (Income Statement, Balance Sheet, Cash Flow), Liquidity & Solvency Ratios, Discounted Cash Flow (DCF) modeling, sensitivity tables.
+   - Mastery Benchmark: Building three-statement integrated models and valuation assessments.
+
+5. AI & Cloud Architecture:
+   - Focus: Generative AI systems, multimodal intelligence, workflow automation.
+   - Core Modules: Gemini multimodal APIs, Prompt Engineering (Few-shot, Chain-of-Thought), LLM agentic tool calling, cloud data workflows.
+   - Mastery Benchmark: Integrating AI capabilities directly into data and application pipelines.
+
+6. End-to-End Portfolio Projects:
+   - Focus: Multi-disciplinary synthesis into verifiable production artifacts.
+   - Core Modules: ETL pipelines, automated data ingestion, public GitHub documentation, live interactive dashboards.
+   - Mastery Benchmark: Publicly demonstrable, verifiable work.
+
+
+================================================================================
+2. DATABASE ARCHITECTURE (POSTGRESQL & SUPABASE)
+================================================================================
+The data architecture is structured across 8 core relational tables:
+
+1. skillos_learning_areas:
+   - Primary categories (SQL, Python, Power BI, Finance, AI, Projects).
+2. skillos_learning_paths:
+   - Specific paths nested under learning areas (e.g. "Advanced SQL Analytics").
+3. skillos_modules:
+   - Sequential thematic modules within a path (e.g. "Window Functions & Analytical Queries").
+4. skillos_topics:
+   - Atomic learning units carrying the 7-state progression enum:
+     ['not_started', 'in_progress', 'practised', 'completed', 'needs_revision', 'mastered', 'blocked'].
+5. skillos_study_sessions:
+   - Immutable daily activity ledger tracking date, duration_mins, category, notes, and topic association.
+6. skillos_practice_attempts:
+   - Detailed record of exercises, problems attempted, errors encountered, solutions, and spaced-repetition flags.
+7. skillos_goals:
+   - Target vs Actual study metrics across daily, weekly, and monthly horizons.
+8. skillos_knowledge_notes:
+   - Markdown notes, cheatsheets, and reusable code snippets linked to topics.
+
+
+================================================================================
+3. GEMINI AI ENGINE SPECIFICATION
+================================================================================
+The AI subsystem uses Google Gemini (gemini-3.5-flash-lite / gemini-3.8-flash) with an
+automatic fallback cascading strategy:
+
+  [Primary: gemini-3.5-flash-lite]
+          |
+          v (if 503 high demand / 404)
+  [Secondary: gemini-3.8-flash]
+          |
+          v (if 503 high demand / 404)
+  [Tertiary: gemini-3.5-flash]
+
+Features Implemented:
+- Domain awareness of SkillOS pillars, topic progression, and data curriculum.
+- Real-time project summarization with on-demand AI regeneration.
+- Flexible roadmap architect generating custom multi-week schedules.
+- Full markdown formatting, code snippet blocks, and copy-to-clipboard functionality.
+
+================================================================================
+END OF DOCUMENT 04
+================================================================================
