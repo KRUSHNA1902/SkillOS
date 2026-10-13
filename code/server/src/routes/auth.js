@@ -2,6 +2,8 @@ import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
+import { registerSchema, loginSchema, validateBody } from '../validation/authSchemas.js';
+import { setAuthCookies, clearAuthCookies } from '../utils/cookies.js';
 
 const router = express.Router();
 
@@ -26,44 +28,9 @@ export const formatUser = (supabaseUser) => {
   };
 };
 
-const setCookies = (res, access_token, refresh_token) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.cookie('access_token', access_token, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    maxAge: 3600000 // 1 hour
-  });
-  if (refresh_token) {
-    res.cookie('refresh_token', refresh_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 3600000 // 7 days
-    });
-  }
-};
-
-const clearCookies = (res) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.clearCookie('access_token', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-  });
-  res.clearCookie('refresh_token', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-  });
-};
-
-// Register
-router.post('/register', authLimiter, async (req, res) => {
+// Register (Sign-up)
+router.post('/register', authLimiter, validateBody(registerSchema), async (req, res) => {
   const { email, password, fullName, phone } = req.body;
-  if (!email || !password || !fullName) {
-    return res.status(400).json({ error: 'Email, password, and Full Name are required' });
-  }
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -82,7 +49,7 @@ router.post('/register', authLimiter, async (req, res) => {
 
   const hasSession = !!data.session;
   if (hasSession) {
-    setCookies(res, data.session.access_token, data.session.refresh_token);
+    setAuthCookies(res, data.session.access_token, data.session.refresh_token);
   }
 
   const formattedUser = formatUser(data.user);
@@ -96,12 +63,9 @@ router.post('/register', authLimiter, async (req, res) => {
   });
 });
 
-// Login
-router.post('/login', authLimiter, async (req, res) => {
+// Login (Sign-in)
+router.post('/login', authLimiter, validateBody(loginSchema), async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   
@@ -115,13 +79,36 @@ router.post('/login', authLimiter, async (req, res) => {
   }
   
   if (data.session) {
-    setCookies(res, data.session.access_token, data.session.refresh_token);
+    setAuthCookies(res, data.session.access_token, data.session.refresh_token);
   }
 
   return res.json({ 
     user: formatUser(data.user), 
     session: true 
   });
+});
+
+// Silent / Explicit Token Refresh
+router.post('/refresh', async (req, res) => {
+  const refreshToken = req.cookies.refresh_token;
+  if (!refreshToken) {
+    clearAuthCookies(res);
+    return res.status(401).json({ error: 'No refresh token provided' });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+    if (error || !data?.session) {
+      clearAuthCookies(res);
+      return res.status(401).json({ error: 'Session expired or invalid. Please sign in again.' });
+    }
+
+    setAuthCookies(res, data.session.access_token, data.session.refresh_token);
+    return res.json({ user: formatUser(data.user), session: true });
+  } catch (err) {
+    clearAuthCookies(res);
+    return res.status(500).json({ error: 'Token refresh failed' });
+  }
 });
 
 // Initiate Google OAuth flow
@@ -158,22 +145,30 @@ router.post('/session', async (req, res) => {
       return res.status(401).json({ error: 'Invalid authentication token' });
     }
 
-    setCookies(res, access_token, refresh_token || '');
+    setAuthCookies(res, access_token, refresh_token || '');
     return res.json({ user: formatUser(user), session: true });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to process session' });
   }
 });
 
-// Logout
-router.post('/logout', (req, res) => {
-  clearCookies(res);
+// Logout (with server-side Supabase token invalidation)
+router.post('/logout', async (req, res) => {
+  const token = req.cookies.access_token;
+  if (token) {
+    try {
+      await supabase.auth.signOut(token);
+    } catch (err) {
+      console.warn('[Auth] Notice on signOut:', err.message);
+    }
+  }
+  clearAuthCookies(res);
   return res.json({ message: 'Logged out successfully' });
 });
 
 // Get current user (protected route)
 router.get('/me', requireAuth, (req, res) => {
-  // requireAuth middleware attaches req.user
+  // requireAuth middleware attaches req.user (and refreshes silently if access_token expired)
   return res.json({ user: formatUser(req.user) });
 });
 
