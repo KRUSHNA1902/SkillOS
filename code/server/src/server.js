@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
+import aiRoutes from './routes/ai.js';
 
 dotenv.config();
 
@@ -25,6 +26,9 @@ app.use(cookieParser());
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+
+// AI & Gemini routes
+app.use('/api/ai', aiRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req, res) => {
