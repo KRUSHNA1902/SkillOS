@@ -91,7 +91,13 @@ const SignIn1: React.FC<SignInProps> = ({
         credentials: 'include' // Important for HttpOnly cookies
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let data: any = {};
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        throw new Error('Unable to connect to authentication service. Please try again.');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Authentication failed');
@@ -128,7 +134,14 @@ const SignIn1: React.FC<SignInProps> = ({
       const response = await fetch(`${API_BASE_URL}/api/auth/oauth/google`, {
         credentials: 'include'
       });
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let data: any = {};
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        throw new Error('Google Sign-In is unavailable. Please try standard sign-in.');
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to initiate Google sign-in');
       }

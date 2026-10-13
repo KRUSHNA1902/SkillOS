@@ -2,6 +2,7 @@
   "name": "skillos",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "workspaces": [
     "code/client",
     "code/server"

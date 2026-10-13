@@ -22,12 +22,19 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://localhost:5174', 
+  'https://skillos.vercel.app',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({ 
   origin: function(origin, callback) {
     if (
       !origin || 
       allowedOrigins.includes(origin) || 
+      origin.endsWith('.vercel.app') ||
       /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)
     ) {
       callback(null, true);
@@ -64,8 +71,8 @@ app.get('/api/info', (req, res) => {
   });
 });
 
-// Start server only if directly executed
-if (process.env.NODE_ENV !== 'test') {
+// Start server only if directly executed outside serverless environments
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[SkillOS Server] Running on http://localhost:${PORT}`);
   });

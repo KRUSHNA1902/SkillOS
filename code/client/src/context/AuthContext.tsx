@@ -87,7 +87,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           credentials: 'include'
         });
-        if (response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
           const data = await response.json();
           setUser(data.user);
         } else {
