@@ -62,6 +62,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
     toggleTaskStatus,
     setTaskPriority,
     toggleReminderAlert,
+    loadStarterTemplates,
   } = useTaskManager();
 
   // View state
@@ -121,6 +122,12 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
       showToast("New task created");
     }
     setEditingTask(null);
+  };
+
+  // Open Create Modal
+  const handleOpenCreate = () => {
+    setEditingTask(null);
+    setIsModalOpen(true);
   };
 
   // Open Edit Modal
@@ -554,7 +561,42 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
 
           <CardContent className="space-y-2 pt-1">
             <div className="divide-y divide-border/60">
-              {filteredTasks.length === 0 ? (
+              {tasks.length === 0 ? (
+                <div className="py-14 text-center space-y-4">
+                  <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+                    <ListTodo className="size-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-foreground">
+                      No Tasks Created Yet
+                    </h3>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                      Your workspace is ready. Plan your study milestones, technical objectives, or sprint goals.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenCreate}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition cursor-pointer"
+                    >
+                      <Plus className="size-3.5" />
+                      <span>Create Your First Task</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        loadStarterTemplates();
+                        showToast("Loaded 5 starter workflow tasks");
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-background hover:bg-muted/60 px-4 py-2 text-xs font-semibold text-foreground active:scale-95 transition cursor-pointer"
+                    >
+                      <Sparkles className="size-3.5 text-amber-500" />
+                      <span>Load Starter Templates (5 Tasks)</span>
+                    </button>
+                  </div>
+                </div>
+              ) : filteredTasks.length === 0 ? (
                 <div className="py-12 text-center space-y-3">
                   <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted/60 text-muted-foreground">
                     <ListTodo className="size-6" />

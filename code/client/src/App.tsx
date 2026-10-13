@@ -140,8 +140,8 @@ function App() {
     displayName.charAt(0).toUpperCase() + displayName.slice(1);
 
   return (
-    <TaskManagerProvider>
-      <NotesProvider>
+    <TaskManagerProvider key={`tasks-${user.id}`}>
+      <NotesProvider key={`notes-${user.id}`}>
         <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
         <AnimatedSidebarProvider className="h-full w-full overflow-hidden">
         {/* Animated Desktop & Mobile Sidebar */}

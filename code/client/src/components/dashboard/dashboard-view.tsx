@@ -127,6 +127,41 @@ export function DashboardView({
   const totalCount = metrics.total;
   const completionRate = metrics.completionRate;
 
+  // Personal activity feed for real users vs dev updates
+  const userUpdates = React.useMemo(() => {
+    if (isDevUser) return initialUpdates;
+    const updates: WorkflowUpdate[] = [
+      {
+        id: "up-welcome",
+        title: "Workspace Initialized",
+        detail: `Welcome to SkillOS, ${userName}. Your personal operating system is ready.`,
+        time: "Just now",
+        type: "system",
+      },
+    ];
+    if (tasks.length > 0) {
+      const latestTask = tasks[0];
+      updates.unshift({
+        id: `up-task-${latestTask.id}`,
+        title: `Task Logged: ${latestTask.title}`,
+        detail: `Status: ${latestTask.status} • Priority: ${latestTask.priority}`,
+        time: "Recent",
+        type: "task",
+      });
+    }
+    if (notes.length > 0) {
+      const latestNote = notes[0];
+      updates.unshift({
+        id: `up-note-${latestNote.id}`,
+        title: `Note Saved: ${latestNote.title}`,
+        detail: `Track: ${latestNote.area}`,
+        time: "Recent",
+        type: "ai",
+      });
+    }
+    return updates;
+  }, [isDevUser, userName, tasks, notes]);
+
   // Toggle task status
   const toggleTask = (id: string) => {
     toggleTaskStatus(id);
@@ -504,9 +539,24 @@ export function DashboardView({
 
             <CardContent className="space-y-2 pt-1">
               <div className="divide-y divide-border/50">
-                {filteredTasks.length === 0 ? (
+                {tasks.length === 0 ? (
+                  <div className="py-8 text-center space-y-2 rounded-xl border border-dashed border-border/70 bg-background/30 p-4">
+                    <p className="text-xs text-muted-foreground">
+                      No tasks yet. Plan your first roadmap milestone above or jump into Tasks.
+                    </p>
+                    {onOpenTasks && (
+                      <button
+                        type="button"
+                        onClick={onOpenTasks}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer font-medium"
+                      >
+                        Open Task Operations &rarr;
+                      </button>
+                    )}
+                  </div>
+                ) : filteredTasks.length === 0 ? (
                   <p className="py-8 text-center text-xs text-muted-foreground">
-                    No tasks found in this view.
+                    No tasks found matching this filter.
                   </p>
                 ) : (
                   filteredTasks.map((task) => {
@@ -683,37 +733,56 @@ export function DashboardView({
                 </button>
               </div>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 pt-1">
-              {notes.slice(0, 4).map((note) => (
-                <div
-                  key={note.id}
-                  onClick={() => {
-                    setSelectedNoteId(note.id);
-                    onOpenNotes?.();
-                  }}
-                  className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition-all hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        {note.tags[0] || note.area}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(note.updatedAt).toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                    <h4 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
-                      {note.title}
-                    </h4>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
-                      {note.contentMarkdown.replace(/[#*`>-]/g, "").slice(0, 110)}
-                    </p>
-                  </div>
+            <CardContent className="pt-1">
+              {notes.length === 0 ? (
+                <div className="py-8 text-center space-y-2 rounded-xl border border-dashed border-border/70 bg-background/30 p-4">
+                  <p className="text-xs text-muted-foreground">
+                    No knowledge notes yet. Capture technical concepts or use the AI Synthesizer.
+                  </p>
+                  {onOpenNotes && (
+                    <button
+                      type="button"
+                      onClick={onOpenNotes}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer font-medium"
+                    >
+                      Open Knowledge Studio &rarr;
+                    </button>
+                  )}
                 </div>
-              ))}
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {notes.slice(0, 4).map((note) => (
+                    <div
+                      key={note.id}
+                      onClick={() => {
+                        setSelectedNoteId(note.id);
+                        onOpenNotes?.();
+                      }}
+                      className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition-all hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            {note.tags[0] || note.area}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(note.updatedAt).toLocaleDateString([], {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                          {note.title}
+                        </h4>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
+                          {note.contentMarkdown.replace(/[#*`>-]/g, "").slice(0, 110)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -735,7 +804,7 @@ export function DashboardView({
             </CardHeader>
             <CardContent className="space-y-3 pt-1">
               <div className="divide-y divide-border/50">
-                {initialUpdates.map((item) => {
+                {userUpdates.map((item) => {
                   let badgeColor = "text-emerald-400 bg-emerald-500/10";
                   let Icon = GitCommit;
                   if (item.type === "deploy") {

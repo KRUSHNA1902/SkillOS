@@ -30,6 +30,12 @@
     --diff-added: 135 62% 41%; /* #28a948 */
     --diff-removed: 353 100% 46%; /* #eb001d */
     --skill: 279 100% 49%; /* #a100f8 */
+
+    /* Tailwind v4 / standard CSS variable bridges */
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-border: hsl(var(--border));
+    --color-muted-foreground: hsl(var(--muted-foreground));
   }
 
   .dark {
@@ -57,6 +63,12 @@
     --diff-added: 135 62% 48%;
     --diff-removed: 353 100% 55%;
     --skill: 279 100% 65%;
+
+    /* Tailwind v4 / standard CSS variable bridges */
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-border: hsl(var(--border));
+    --color-muted-foreground: hsl(var(--muted-foreground));
   }
 
   * {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   WorkflowTask,
   TaskPriority,
@@ -8,7 +9,7 @@ import {
   TaskMetrics,
 } from "./task-types";
 
-const STORAGE_KEY = "skillos_workflow_tasks_v2";
+export const STORAGE_KEY = "skillos_workflow_tasks_v2";
 
 const initialTasksSeed: WorkflowTask[] = [
   {
@@ -182,6 +183,7 @@ interface TaskManagerContextType {
   toggleReminderAlert: (id: string) => void;
   dismissAlert: (alertId: string) => void;
   resetDefaultTasks: () => void;
+  loadStarterTemplates: () => void;
 }
 
 const TaskManagerContext = createContext<TaskManagerContextType | null>(null);
@@ -191,31 +193,62 @@ export function TaskManagerProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = useAuth();
+  const isDevUser = user?.id === "dev-user-001";
+  const storageKey = user ? `skillos_workflow_tasks_${user.id}` : "skillos_workflow_tasks_guest";
+  const alertsKey = user ? `skillos_dismissed_alerts_${user.id}` : "skillos_dismissed_alerts_guest";
+
   const [tasks, setTasks] = useState<WorkflowTask[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
+      }
+      // If dev user and nothing in personal key, check legacy key
+      if (isDevUser) {
+        const legacy = localStorage.getItem("skillos_workflow_tasks_v2");
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+        return initialTasksSeed;
       }
     } catch {
       // Fallback on error
     }
-    return initialTasksSeed;
+    // Regular users start with clean slate []
+    return [];
   });
 
-  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(alertsKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
 
-  // Persist tasks in localStorage
+  // Persist tasks in localStorage scoped to current user
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      localStorage.setItem(storageKey, JSON.stringify(tasks));
     } catch {
       // localStorage quota or private mode guard
     }
-  }, [tasks]);
+  }, [tasks, storageKey]);
+
+  // Persist dismissed alerts in localStorage scoped to current user
+  useEffect(() => {
+    try {
+      localStorage.setItem(alertsKey, JSON.stringify(dismissedAlertIds));
+    } catch {}
+  }, [dismissedAlertIds, alertsKey]);
 
   // Compute real-time deadline alerts
   const activeAlerts = useMemo<DeadlineAlert[]>(() => {
@@ -441,6 +474,7 @@ export function TaskManagerProvider({
         toggleReminderAlert,
         dismissAlert,
         resetDefaultTasks,
+        loadStarterTemplates: resetDefaultTasks,
       }}
     >
       {children}

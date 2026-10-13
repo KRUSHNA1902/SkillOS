@@ -93,6 +93,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
     duplicateNote,
     exportNoteMarkdown,
     exportAllNotesMarkdown,
+    loadStarterTemplates,
   } = useNotes();
 
   // View state
@@ -465,8 +466,49 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
 
       {/* WORKSPACE BODY */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {filteredNotes.length === 0 ? (
-          /* Empty State */
+        {notes.length === 0 ? (
+          /* Clean Slate Empty State */
+          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+            <div className="max-w-md space-y-4 rounded-3xl border border-border/80 bg-card/60 p-8 shadow-xs backdrop-blur-md">
+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+                <NotebookTabs className="size-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-foreground">
+                  No Knowledge Notes Yet
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Start documenting query patterns, architecture blueprints, or generate high-yield study guides with the AI Synthesizer.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingNote(null);
+                    setIsModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Write First Note</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadStarterTemplates();
+                    showToast("Loaded 4 starter knowledge study guides");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-background hover:bg-muted/60 px-4 py-2 text-xs font-semibold text-foreground active:scale-95 transition cursor-pointer"
+                >
+                  <Sparkles className="size-3.5 text-amber-500" />
+                  <span>Load Sample Study Guides (4 Notes)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : filteredNotes.length === 0 ? (
+          /* Filtered Empty State */
           <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
             <div className="max-w-md space-y-3 rounded-2xl border border-border/60 bg-card/40 p-8 backdrop-blur-sm">
               <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">

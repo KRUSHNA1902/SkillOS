@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { KnowledgeNote, NoteTrack, NoteMetrics } from "./note-types";
 
-const STORAGE_KEY = "skillos_knowledge_notes_v1";
+export const STORAGE_KEY = "skillos_knowledge_notes_v1";
 
 const initialNotesSeed: KnowledgeNote[] = [
   {
@@ -208,38 +209,55 @@ interface NotesContextType {
   duplicateNote: (id: string) => KnowledgeNote;
   exportNoteMarkdown: (id: string) => void;
   exportAllNotesMarkdown: () => void;
+  loadStarterTemplates: () => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 export function NotesProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const isDevUser = user?.id === "dev-user-001";
+  const storageKey = user ? `skillos_knowledge_notes_${user.id}` : "skillos_knowledge_notes_guest";
+
   const [notes, setNotes] = useState<KnowledgeNote[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
+      }
+      if (isDevUser) {
+        const legacy = localStorage.getItem("skillos_knowledge_notes_v1");
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+        return initialNotesSeed;
       }
     } catch (e) {
       console.warn("Failed to read knowledge notes from storage:", e);
     }
-    return initialNotesSeed;
+    // Regular users start with clean slate []
+    return [];
   });
 
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(() => {
-    return initialNotesSeed[0]?.id || null;
+    if (isDevUser) {
+      return initialNotesSeed[0]?.id || null;
+    }
+    return null;
   });
 
   // Save to localStorage whenever notes update
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+      localStorage.setItem(storageKey, JSON.stringify(notes));
     } catch (e) {
       console.error("Failed to save knowledge notes to storage:", e);
     }
-  }, [notes]);
+  }, [notes, storageKey]);
 
   // Ensure valid selection if selected note gets deleted
   useEffect(() => {
@@ -401,6 +419,12 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(url);
   };
 
+  // Load starter templates
+  const loadStarterTemplates = () => {
+    setNotes(initialNotesSeed);
+    setSelectedNoteId(initialNotesSeed[0]?.id || null);
+  };
+
   const value = {
     notes,
     selectedNoteId,
@@ -413,6 +437,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     duplicateNote,
     exportNoteMarkdown,
     exportAllNotesMarkdown,
+    loadStarterTemplates,
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
