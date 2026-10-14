@@ -130,6 +130,7 @@ export function ProjectsView({
 
   // Sync initialFilter prop if changed from sidebar
   useEffect(() => {
+    setInspectingProject(null);
     if (initialFilter === "in_progress") {
       setStatusFilter("in_progress");
     } else if (initialFilter === "completed") {
@@ -208,6 +209,36 @@ export function ProjectsView({
       addProject(projectData);
     }
   };
+
+  // When inspecting a project, render the full-canvas in-page workspace
+  // while keeping the sidebar navigation menu and top header intact
+  if (currentInspectingProject) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
+        <ProjectDetailsInspector
+          project={currentInspectingProject}
+          isOpen={true}
+          onClose={() => setInspectingProject(null)}
+          onEdit={(p) => {
+            handleOpenEdit(p);
+          }}
+          onNavigateToTasks={onNavigateToTasks}
+          onNavigateToNotes={onNavigateToNotes}
+        />
+
+        {/* Creation & Edit Modal (Available when editing inside Project Details) */}
+        <ProjectModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProject(null);
+          }}
+          onSave={handleSaveProject}
+          initialProject={editingProject}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-background overflow-y-auto">
@@ -661,19 +692,6 @@ export function ProjectsView({
         }}
         onSave={handleSaveProject}
         initialProject={editingProject}
-      />
-
-      {/* Deep-Dive Inspector Sheet */}
-      <ProjectDetailsInspector
-        project={currentInspectingProject}
-        isOpen={Boolean(inspectingProject)}
-        onClose={() => setInspectingProject(null)}
-        onEdit={(p) => {
-          setInspectingProject(null);
-          handleOpenEdit(p);
-        }}
-        onNavigateToTasks={onNavigateToTasks}
-        onNavigateToNotes={onNavigateToNotes}
       />
     </div>
   );

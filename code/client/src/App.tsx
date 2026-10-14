@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import SignIn1 from "@/components/ui/modern-stunning-sign-in";
 import {
@@ -36,6 +36,8 @@ import { InboxProvider, useInbox } from "@/components/inbox/inbox-context";
 import { AIAssistantView } from "@/components/ai/ai-assistant-view";
 import { ProfileSettingsDialog } from "@/components/profile/profile-settings-dialog";
 import { UserAvatarIcon } from "@/components/profile/user-avatar-icon";
+import { SearchView } from "@/components/search/search-view";
+import { CommandPaletteModal } from "@/components/search/command-palette-modal";
 import { useTheme } from "@/context/ThemeContext";
 import { OnboardingProvider, useOnboarding } from "@/context/OnboardingContext";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
@@ -255,6 +257,19 @@ function App() {
   const [active, setActive] = useState("Dashboard");
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Global Cmd+K / Ctrl+K listener for Command Palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   if (loading) {
     return (
@@ -336,6 +351,7 @@ function App() {
                   <AnimatedSidebarMenuItem>
                     <AnimatedSidebarMenuButton
                       icon={<Search className="size-4" />}
+                      badge="⌘K"
                       isActive={active === "Search"}
                       onSelect={() => setActive("Search")}
                     >
@@ -563,6 +579,15 @@ function App() {
               />
             ) : active === "AI Assistant" ? (
               <AIAssistantView userName={capitalizedName} />
+            ) : active === "Search" ? (
+              <SearchView
+                onNavigateToTasks={() => setActive("Tasks")}
+                onNavigateToProjects={() => setActive("Projects")}
+                onNavigateToNotes={() => setActive("Notes")}
+                onNavigateToAI={() => setActive("AI Assistant")}
+                onNavigateToInbox={() => setActive("Inbox")}
+                onNavigateToDashboard={() => setActive("Dashboard")}
+              />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
                 <div className="max-w-md space-y-3 rounded-2xl border border-border/60 bg-card/40 p-8 backdrop-blur-sm">
@@ -604,6 +629,13 @@ function App() {
 
       {/* Universal Cross-Entity Tag Management Modal */}
       <TagManagementModal />
+
+      {/* Universal Command Palette (⌘K) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigateTo={(view) => setActive(view)}
+      />
     </div>
           </OnboardingProvider>
         </InboxProvider>
