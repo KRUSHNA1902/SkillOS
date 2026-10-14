@@ -91,7 +91,12 @@ function InboxSidebarButton({
 }
 
 function TourSidebarButton() {
-  const { startTour } = useOnboarding();
+  const { state, startTour } = useOnboarding();
+
+  if (state.checklist?.tourCompleted) {
+    return null;
+  }
+
   return (
     <button
       type="button"

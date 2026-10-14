@@ -113,7 +113,7 @@ export function DashboardView({
     setSelectedNoteId,
   } = useNotes();
 
-  const { startTour } = useOnboarding();
+  const { state: onboardingState, startTour } = useOnboarding();
 
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [newTaskInput, setNewTaskInput] = useState("");
@@ -265,15 +265,17 @@ export function DashboardView({
               <span>Ask AI</span>
             </button>
           )}
-          <button
-            type="button"
-            onClick={startTour}
-            title="Start interactive product tour"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
-          >
-            <Compass className="size-3.5 text-amber-400" />
-            <span>Tour</span>
-          </button>
+          {!onboardingState.checklist?.tourCompleted && (
+            <button
+              type="button"
+              onClick={startTour}
+              title="Start interactive product tour"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
+            >
+              <Compass className="size-3.5 text-amber-400" />
+              <span>Tour</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowAddNote(!showAddNote)}

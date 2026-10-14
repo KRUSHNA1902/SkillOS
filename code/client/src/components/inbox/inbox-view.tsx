@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Inbox,
-  Search,
   CheckCheck,
   Archive,
   RotateCcw,
-  Filter,
   Flame,
   CheckCircle2,
   X,
@@ -16,6 +14,7 @@ import {
 import { useInbox } from "./inbox-context";
 import { InboxItemRow } from "./inbox-item-row";
 import { InboxDetailsPane } from "./inbox-details-pane";
+import { InboxSearchPriorityBar } from "./inbox-search-priority-bar";
 import { InboxFilterTab, InboxItem } from "./inbox-types";
 import { cn } from "@/lib/utils";
 import {
@@ -307,107 +306,48 @@ export function InboxView({
           </div>
         </div>
 
-        {/* Search Bar & Filter Controls Row */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-1">
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search notifications, senders, or #tags..."
-              className="w-full h-8.5 rounded-xl border border-border/60 bg-background/60 pl-8.5 pr-8 text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/80 transition-all"
-            />
-            {searchQuery && (
+        {/* Category Tabs Row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 no-scrollbar">
+          {(
+            [
+              { id: "all", label: "All", count: metrics.total },
+              { id: "unread", label: "Unread", count: metrics.unread },
+              { id: "ai", label: "AI Copilot" },
+              { id: "task", label: "Tasks" },
+              { id: "workflow", label: "Workflows" },
+              { id: "security", label: "Security" },
+              { id: "archived", label: "Archived", count: metrics.archived },
+            ] as const
+          ).map((tab) => {
+            const isActive = filterTab === tab.id;
+            return (
               <button
+                key={tab.id}
                 type="button"
-                onClick={() => setSearchQuery("")}
-                title="Clear search"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Priority Filter Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
+                onClick={() => setFilterTab(tab.id as InboxFilterTab)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl border text-xs font-medium transition-colors cursor-pointer",
-                  priorityFilter !== "all"
-                    ? "border-primary/50 bg-primary/10 text-primary"
-                    : "border-border/60 bg-background/60 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  "inline-flex items-center gap-1.5 h-7.5 px-3 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 )}
               >
-                <Filter className="size-3.5" />
-                <span className="capitalize">
-                  {priorityFilter === "all" ? "Priority: All" : `Priority: ${priorityFilter}`}
-                </span>
+                <span>{tab.label}</span>
+                {"count" in tab && typeof tab.count === "number" && (
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.2 text-[10px] font-mono",
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {tab.count}
+                  </span>
+                )}
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {(["all", "urgent", "high", "normal", "low"] as const).map((p) => (
-                <DropdownMenuItem
-                  key={p}
-                  onClick={() => setPriorityFilter(p)}
-                  className="text-xs capitalize cursor-pointer flex items-center justify-between"
-                >
-                  <span>{p}</span>
-                  {priorityFilter === p && <span className="size-1.5 rounded-full bg-primary" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Category Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar">
-            {(
-              [
-                { id: "all", label: "All", count: metrics.total },
-                { id: "unread", label: "Unread", count: metrics.unread },
-                { id: "ai", label: "AI Copilot" },
-                { id: "task", label: "Tasks" },
-                { id: "workflow", label: "Workflows" },
-                { id: "security", label: "Security" },
-                { id: "archived", label: "Archived", count: metrics.archived },
-              ] as const
-            ).map((tab) => {
-              const isActive = filterTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setFilterTab(tab.id as InboxFilterTab)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer",
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <span>{tab.label}</span>
-                  {"count" in tab && typeof tab.count === "number" && (
-                    <span
-                      className={cn(
-                        "rounded-full px-1.5 py-0.2 text-[10px] font-mono",
-                        isActive
-                          ? "bg-primary-foreground/20 text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+            );
+          })}
         </div>
       </div>
 
@@ -416,78 +356,92 @@ export function InboxView({
         {/* Left Master List Feed */}
         <div
           className={cn(
-            "flex flex-col h-full min-h-0 border-r border-border/40 bg-card/15 overflow-y-auto p-3 space-y-2.5 transition-all duration-200",
+            "flex flex-col h-full min-h-0 border-r border-border/40 bg-card/15 overflow-hidden transition-all duration-200",
             // Responsive visibility: On desktop, show left pane; on mobile, hide if detail view is active
             mobileShowDetail ? "hidden md:flex md:w-[420px] lg:w-[460px] shrink-0" : "flex w-full md:w-[420px] lg:w-[460px] shrink-0"
           )}
         >
-          {filteredItems.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-              <div className="max-w-xs space-y-2">
-                <div className="mx-auto grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <CheckCircle2 className="size-5" />
+          {/* Feed Header: 21st.dev Inspired Search & Priority Filter Bar */}
+          <div className="p-3 border-b border-border/50 bg-background/60 backdrop-blur-sm shrink-0">
+            <InboxSearchPriorityBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              priorityFilter={priorityFilter}
+              onPriorityChange={setPriorityFilter}
+              totalFilteredCount={filteredItems.length}
+            />
+          </div>
+
+          {/* Scrollable Notifications Feed */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            {filteredItems.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center p-8 text-center min-h-[300px]">
+                <div className="max-w-xs space-y-2">
+                  <div className="mx-auto grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <CheckCircle2 className="size-5" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    No notifications found
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {searchQuery
+                      ? `No notifications matched "${searchQuery}".`
+                      : filterTab === "unread"
+                      ? "You're all caught up! No unread notifications remaining."
+                      : filterTab === "archived"
+                      ? "Archive is empty."
+                      : "There are no notifications matching your active filters."}
+                  </p>
+                  {(filterTab !== "all" || priorityFilter !== "all" || searchQuery) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterTab("all");
+                        setPriorityFilter("all");
+                        setSearchQuery("");
+                      }}
+                      className="mt-2 text-xs text-primary font-medium hover:underline cursor-pointer"
+                    >
+                      Reset all filters
+                    </button>
+                  )}
                 </div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  No notifications found
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {searchQuery
-                    ? `No notifications matched "${searchQuery}".`
-                    : filterTab === "unread"
-                    ? "You're all caught up! No unread notifications remaining."
-                    : filterTab === "archived"
-                    ? "Archive is empty."
-                    : "There are no notifications matching your active filters."}
-                </p>
-                {filterTab !== "all" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterTab("all");
-                      setPriorityFilter("all");
-                      setSearchQuery("");
-                    }}
-                    className="mt-2 text-xs text-primary font-medium hover:underline cursor-pointer"
-                  >
-                    Reset all filters
-                  </button>
-                )}
               </div>
-            </div>
-          ) : (
-            filteredItems.map((item) => (
-              <InboxItemRow
-                key={item.id}
-                item={item}
-                isSelected={item.id === selectedItemId}
-                onSelect={() => handleSelectItem(item)}
-                onToggleStar={(e) => {
-                  e.stopPropagation();
-                  toggleStar(item.id);
-                }}
-                onToggleRead={(e) => {
-                  e.stopPropagation();
-                  if (item.status === "unread") {
-                    markAsRead(item.id);
-                  } else {
-                    markAsUnread(item.id);
+            ) : (
+              filteredItems.map((item) => (
+                <InboxItemRow
+                  key={item.id}
+                  item={item}
+                  isSelected={item.id === selectedItemId}
+                  onSelect={() => handleSelectItem(item)}
+                  onToggleStar={(e) => {
+                    e.stopPropagation();
+                    toggleStar(item.id);
+                  }}
+                  onToggleRead={(e) => {
+                    e.stopPropagation();
+                    if (item.status === "unread") {
+                      markAsRead(item.id);
+                    } else {
+                      markAsUnread(item.id);
+                    }
+                  }}
+                  onArchive={(e) => {
+                    e.stopPropagation();
+                    archiveItem(item.id);
+                  }}
+                  onUnarchive={
+                    item.status === "archived"
+                      ? (e) => {
+                          e.stopPropagation();
+                          unarchiveItem(item.id);
+                        }
+                      : undefined
                   }
-                }}
-                onArchive={(e) => {
-                  e.stopPropagation();
-                  archiveItem(item.id);
-                }}
-                onUnarchive={
-                  item.status === "archived"
-                    ? (e) => {
-                        e.stopPropagation();
-                        unarchiveItem(item.id);
-                      }
-                    : undefined
-                }
-              />
-            ))
-          )}
+                />
+              ))
+            )}
+          </div>
         </div>
 
         {/* Right Detail Pane */}

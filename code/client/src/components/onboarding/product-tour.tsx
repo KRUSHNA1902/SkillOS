@@ -139,9 +139,10 @@ export function ProductTour() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        endTour();
+        endTour(false);
       } else if (e.key === "ArrowRight") {
         if (!isLastStep) nextTourStep();
+        else endTour(true);
       } else if (e.key === "ArrowLeft") {
         if (!isFirstStep) prevTourStep();
       }
@@ -239,7 +240,7 @@ export function ProductTour() {
           height="100%"
           fill="rgba(0, 0, 0, 0.75)"
           mask="url(#tour-spotlight-mask)"
-          onClick={endTour}
+          onClick={() => endTour(false)}
         />
       </svg>
 
@@ -283,7 +284,7 @@ export function ProductTour() {
             </div>
             <button
               type="button"
-              onClick={endTour}
+              onClick={() => endTour(false)}
               title="Exit product tour (Esc)"
               className="grid size-6 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
             >
@@ -335,7 +336,7 @@ export function ProductTour() {
               {isLastStep ? (
                 <button
                   type="button"
-                  onClick={endTour}
+                  onClick={() => endTour(true)}
                   className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-black hover:bg-emerald-400 transition-colors cursor-pointer shadow-sm"
                 >
                   <Check className="size-3 stroke-[3]" />
