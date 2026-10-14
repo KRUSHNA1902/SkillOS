@@ -241,7 +241,7 @@ export type PaletteInput = PaletteName | string[] | { light: string[]; dark: str
 
 /** Four colours per theme, lightest activity → heaviest. */
 export const PALETTES: Record<PaletteName, { light: string[]; dark: string[] }> = {
-  github: { light: ["#c6e48b", "#7bc96f", "#239a3b", "#196127"], dark: ["#0e4429", "#006d32", "#26a641", "#39d353"] },
+  github: { light: ["#9be9a8", "#40c463", "#30a14e", "#216e39"], dark: ["#0e4429", "#006d32", "#26a641", "#39d353"] },
   halloween: { light: ["#ffee4a", "#ffc501", "#fe9600", "#b33c00"], dark: ["#631c03", "#bd561d", "#fa7a18", "#fddf68"] },
   ocean: { light: ["#b8e3f5", "#6ec3eb", "#2a8fd1", "#0b4f8a"], dark: ["#0c2d4a", "#12508a", "#2a88d8", "#7cc7ff"] },
   ember: { light: ["#fde2c4", "#fbad6e", "#f06b3a", "#b3261e"], dark: ["#4a1a10", "#8f2f16", "#e0572a", "#ffa46b"] },
@@ -294,6 +294,8 @@ export interface ContributionSkylineProps {
   seed?: number
   onCellClick?: (day: ContributionDay) => void
   className?: string
+  /** Theme mode override: 'dark' renders the exact dark GitHub colors from 21st.dev, 'light', or 'auto' (default) */
+  themeMode?: "dark" | "light" | "auto"
 }
 
 const FG_FALLBACK: RGB = [23, 23, 23]
@@ -370,6 +372,7 @@ function Stat({
   accent,
   size,
   align,
+  muted = MUTED,
 }: {
   label: string
   value: string
@@ -378,11 +381,12 @@ function Stat({
   accent: string
   size: number
   align: "start" | "end" | "stack"
+  muted?: string
 }) {
   if (align === "stack") {
     return (
       <div className="min-w-0">
-        <div className="text-[13px] leading-tight" style={{ color: MUTED }}>
+        <div className="text-[13px] leading-tight" style={{ color: muted }}>
           {label}
         </div>
         <div className="mt-1 flex items-baseline gap-1.5">
@@ -394,7 +398,7 @@ function Stat({
           </span>
           <span className="text-[14px]">{unit}</span>
         </div>
-        <div className="mt-0.5 truncate text-[12px]" style={{ color: MUTED }}>
+        <div className="mt-0.5 truncate text-[12px]" style={{ color: muted }}>
           {sub}
         </div>
       </div>
@@ -404,13 +408,13 @@ function Stat({
     <div className="grid grid-cols-[auto_auto] items-end gap-x-2" style={{ justifyContent: align }}>
       {align === "end" ? (
         <>
-          <div className="text-right text-[13px] leading-tight" style={{ color: MUTED }}>
+          <div className="text-right text-[13px] leading-tight" style={{ color: muted }}>
             {label}
           </div>
           <div />
         </>
       ) : (
-        <div className="col-span-2 text-[13px] leading-tight" style={{ color: MUTED }}>
+        <div className="col-span-2 text-[13px] leading-tight" style={{ color: muted }}>
           {label}
         </div>
       )}
@@ -422,7 +426,7 @@ function Stat({
       </div>
       <div className="pb-[0.15em] leading-tight">
         <div className="text-[15px]">{unit}</div>
-        <div className="whitespace-nowrap text-[13px]" style={{ color: MUTED }}>
+        <div className="whitespace-nowrap text-[13px]" style={{ color: muted }}>
           {sub}
         </div>
       </div>
@@ -452,6 +456,7 @@ export default function ContributionSkyline({
   seed = 7,
   onCellClick,
   className = "",
+  themeMode = "auto",
 }: ContributionSkylineProps) {
   const endKey = endDate == null ? null : dayMs(endDate)
   const model = React.useMemo(() => {
@@ -470,8 +475,10 @@ export default function ContributionSkyline({
   }
 
   const [theme, setTheme] = React.useState<{ dark: boolean; swatches: string[]; accent: string }>(() => {
-    const p = resolvePalette(palette, false)
-    return { dark: false, swatches: ["#ebedf0", ...p], accent: p[3] }
+    const isInitialDark = themeMode === "dark" || (themeMode !== "light" && typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    const p = resolvePalette(palette, isInitialDark)
+    const empty = isInitialDark ? "#161b22" : "#ebedf0"
+    return { dark: isInitialDark, swatches: [empty, ...p], accent: p[3] }
   })
   const [width, setWidth] = React.useState(0)
   const [active, setActive] = React.useState(-1)
@@ -497,8 +504,8 @@ export default function ContributionSkyline({
   }
 
   // Everything the render loop reads, refreshed every render so the loop never closes over stale props.
-  const cfg = React.useRef({ model, duration, heightScale, orbit, palette, legendLevel, onCellClick, target: view === "3d" ? 1 : 0, setActive, setWidth, setTheme, setAnnounce, describe })
-  cfg.current = { model, duration, heightScale, orbit, palette, legendLevel, onCellClick, target: view === "3d" ? 1 : 0, setActive, setWidth, setTheme, setAnnounce, describe }
+  const cfg = React.useRef({ model, duration, heightScale, orbit, palette, legendLevel, onCellClick, themeMode, target: view === "3d" ? 1 : 0, setActive, setWidth, setTheme, setAnnounce, describe })
+  cfg.current = { model, duration, heightScale, orbit, palette, legendLevel, onCellClick, themeMode, target: view === "3d" ? 1 : 0, setActive, setWidth, setTheme, setAnnounce, describe }
 
   React.useEffect(() => {
     const root = rootRef.current
@@ -597,14 +604,28 @@ export default function ContributionSkyline({
     }
 
     const retheme = () => {
+      const mode = cfg.current.themeMode
       const cs = getComputedStyle(root)
       fg = toRGB(cs.color, FG_FALLBACK) ?? FG_FALLBACK
       const b = toRGB(cs.backgroundColor, null)
       bg = b ?? (luminance(fg) > 0.5 ? [10, 10, 10] : BG_FALLBACK)
-      isDark = luminance(bg) < 0.45
+
+      if (mode === "dark") {
+        isDark = true
+        bg = [13, 17, 23]
+        fg = [240, 246, 252]
+      } else if (mode === "light") {
+        isDark = false
+        bg = [255, 255, 255]
+        fg = [23, 23, 23]
+      } else {
+        isDark = luminance(bg) < 0.45
+      }
+
       font = "400 10px " + (cs.fontFamily || "sans-serif")
       const pal = resolvePalette(cfg.current.palette, isDark)
-      const empty = mixRGB(bg, fg, isDark ? 0.11 : 0.075)
+      // On dark theme, empty slabs are GitHub dark charcoal #161b22
+      const empty = isDark ? ([22, 27, 34] as RGB) : mixRGB(bg, fg, 0.075)
       const all: RGB[] = [empty, ...pal.map((c) => toRGB(c, FG_FALLBACK) ?? FG_FALLBACK)]
       for (let k = 0; k < 5; k++) for (let ch = 0; ch < 3; ch++) colGoal[k * 3 + ch] = all[k][ch]
       if (!colReady || reduced) {
@@ -1138,7 +1159,7 @@ export default function ContributionSkyline({
 
   React.useEffect(() => {
     engine.current?.retheme()
-  }, [palette])
+  }, [palette, themeMode])
 
   // The tooltip's width is needed to keep it inside the card; measure it when its text changes.
   React.useLayoutEffect(() => {
@@ -1168,14 +1189,21 @@ export default function ContributionSkyline({
   const hints = ["Hover a day for details · arrow keys to explore", "Drag to orbit · double-click to reset"]
   const hint = hints[is3d && orbit ? 1 : 0]
 
+  const isCardDark = themeMode === "dark" || (themeMode !== "light" && theme.dark)
+  const cardBg = isCardDark ? "#0d1117" : "var(--color-background, #ffffff)"
+  const cardFg = isCardDark ? "#f0f6fc" : "var(--color-foreground, #171717)"
+  const cardBorder = isCardDark ? "#30363d" : "var(--color-border, #e5e5e5)"
+  const innerBorder = isCardDark ? "#21262d" : "var(--color-border, #e5e5e5)"
+  const cardMuted = isCardDark ? "#8b949e" : MUTED
+
   return (
     <section
       ref={rootRef}
-      className={"relative w-full rounded-xl border p-4 font-sans sm:p-5 " + className}
+      className={"relative w-full rounded-xl border p-4 font-sans sm:p-5 transition-colors duration-300 " + className}
       style={{
-        background: "var(--color-background, #ffffff)",
-        color: "var(--color-foreground, #171717)",
-        borderColor: "var(--color-border, #e5e5e5)",
+        background: cardBg,
+        color: cardFg,
+        borderColor: cardBorder,
       }}
     >
       <header className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -1191,13 +1219,13 @@ export default function ContributionSkyline({
             role="group"
             aria-label="Chart view"
             className="relative inline-flex rounded-md border p-0.5"
-            style={{ borderColor: "var(--color-border, #e5e5e5)" }}
+            style={{ borderColor: cardBorder }}
           >
             <span
               aria-hidden="true"
               className="absolute top-0.5 bottom-0.5 left-0.5 w-8 rounded transition-transform duration-500 motion-reduce:transition-none"
               style={{
-                background: "var(--color-foreground, #171717)",
+                background: isCardDark ? "#21262d" : "var(--color-foreground, #171717)",
                 transform: is3d ? "translateX(100%)" : "translateX(0)",
                 transitionTimingFunction: ease,
               }}
@@ -1212,8 +1240,8 @@ export default function ContributionSkyline({
                 onClick={() => setView(v)}
                 className="relative z-10 grid h-7 w-8 cursor-pointer place-items-center rounded border-0 bg-transparent p-0 transition-colors duration-500 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none"
                 style={{
-                  color: view === v ? "var(--color-background, #ffffff)" : MUTED,
-                  outlineColor: "var(--color-foreground, #171717)",
+                  color: view === v ? (isCardDark ? "#39d353" : "var(--color-background, #ffffff)") : cardMuted,
+                  outlineColor: isCardDark ? "#39d353" : "var(--color-foreground, #171717)",
                 }}
               >
                 {v === "2d" ? <GridIcon /> : <CubeIcon />}
@@ -1223,12 +1251,12 @@ export default function ContributionSkyline({
         )}
       </header>
 
-      <div className="relative rounded-lg border" style={{ borderColor: "var(--color-border, #e5e5e5)" }}>
+      <div className="relative rounded-lg border" style={{ borderColor: innerBorder }}>
         <div className="relative px-3 pt-3 sm:px-4 sm:pt-4">
           <div
             ref={stageRef}
             className="relative w-full overflow-hidden rounded-md outline-offset-4 has-[:focus-visible]:outline-2"
-            style={{ height: 150, outlineColor: "var(--color-foreground, #171717)" }}
+            style={{ height: 150, outlineColor: isCardDark ? "#39d353" : "var(--color-foreground, #171717)" }}
           >
             <canvas
               ref={canvasRef}
@@ -1255,8 +1283,8 @@ export default function ContributionSkyline({
                     transitionTimingFunction: ease,
                   }}
                 >
-                  <Stat {...statBlocks[0]} accent={theme.accent} size={bigSize} align="end" />
-                  <Stat {...statBlocks[1]} accent={theme.accent} size={bigSize} align="end" />
+                  <Stat {...statBlocks[0]} accent={theme.accent} size={bigSize} align="end" muted={cardMuted} />
+                  <Stat {...statBlocks[1]} accent={theme.accent} size={bigSize} align="end" muted={cardMuted} />
                 </div>
                 <div
                   aria-hidden={!is3d}
@@ -1269,8 +1297,8 @@ export default function ContributionSkyline({
                     transitionTimingFunction: ease,
                   }}
                 >
-                  <Stat {...statBlocks[2]} accent={theme.accent} size={bigSize} align="start" />
-                  <Stat {...statBlocks[3]} accent={theme.accent} size={bigSize} align="start" />
+                  <Stat {...statBlocks[2]} accent={theme.accent} size={bigSize} align="start" muted={cardMuted} />
+                  <Stat {...statBlocks[3]} accent={theme.accent} size={bigSize} align="start" muted={cardMuted} />
                 </div>
               </>
             )}
@@ -1283,8 +1311,9 @@ export default function ContributionSkyline({
             className="pointer-events-none absolute top-3 left-3 z-20 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[12px] leading-none shadow-lg transition-opacity duration-150 sm:top-4 sm:left-4 motion-reduce:transition-none"
             style={{
               opacity: active >= 0 ? 1 : 0,
-              background: "var(--color-foreground, #171717)",
-              color: "var(--color-background, #ffffff)",
+              background: isCardDark ? "#161b22" : "var(--color-foreground, #171717)",
+              color: isCardDark ? "#f0f6fc" : "var(--color-background, #ffffff)",
+              border: isCardDark ? "1px solid #30363d" : "none",
             }}
           >
             {active >= 0 && model.cells[active] ? (
@@ -1295,7 +1324,7 @@ export default function ContributionSkyline({
                 <span className="opacity-75"> on {dfy.format(dayMs(model.cells[active].date))}</span>
               </>
             ) : (
-              " "
+              " "
             )}
             <span
               aria-hidden="true"
@@ -1305,7 +1334,7 @@ export default function ContributionSkyline({
                 marginLeft: -5,
                 borderLeft: "5px solid transparent",
                 borderRight: "5px solid transparent",
-                borderTop: "5px solid var(--color-foreground, #171717)",
+                borderTop: isCardDark ? "5px solid #161b22" : "5px solid var(--color-foreground, #171717)",
               }}
             />
           </div>
@@ -1325,14 +1354,14 @@ export default function ContributionSkyline({
             <div className="min-h-0 overflow-hidden">
               <div className="grid grid-cols-2 gap-x-4 gap-y-4 px-3 pt-4 pb-1 sm:px-4 md:grid-cols-4">
                 {statBlocks.map((b) => (
-                  <Stat key={b.label} {...b} accent={theme.accent} size={28} align="stack" />
+                  <Stat key={b.label} {...b} accent={theme.accent} size={28} align="stack" muted={cardMuted} />
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 pt-3 pb-3 text-[12px] sm:px-4" style={{ color: MUTED }}>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 pt-3 pb-3 text-[12px] sm:px-4" style={{ color: cardMuted }}>
           {footer === undefined ? (
             <span className="relative grid flex-1">
               {hints.map((h) => (
@@ -1366,8 +1395,8 @@ export default function ContributionSkyline({
                   className="h-[11px] w-[11px] cursor-pointer rounded-[2px] border-0 p-0 transition-[background-color,transform] duration-500 hover:scale-125 focus-visible:outline-2 focus-visible:outline-offset-1 motion-reduce:transition-none"
                   style={{
                     background: c,
-                    outlineColor: "var(--color-foreground, #171717)",
-                    boxShadow: "inset 0 0 0 1px rgba(127,127,127,0.12)",
+                    outlineColor: isCardDark ? "#39d353" : "var(--color-foreground, #171717)",
+                    boxShadow: isCardDark ? "inset 0 0 0 1px rgba(255,255,255,0.15)" : "inset 0 0 0 1px rgba(127,127,127,0.12)",
                   }}
                 />
               ))}

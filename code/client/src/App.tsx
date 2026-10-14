@@ -31,13 +31,26 @@ import { AIAssistantView } from "@/components/ai/ai-assistant-view";
 import { ProfileSettingsDialog } from "@/components/profile/profile-settings-dialog";
 import { UserAvatarIcon } from "@/components/profile/user-avatar-icon";
 import { useTheme } from "@/context/ThemeContext";
+import { OnboardingProvider, useOnboarding } from "@/context/OnboardingContext";
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { ProductTour } from "@/components/onboarding/product-tour";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Building2,
+  Check,
   ChevronsUpDown,
   CircleUserRound,
   Command,
+  Compass,
   FolderKanban,
   Inbox,
+  Laptop,
   LayoutGrid,
   ListTodo,
   Loader2,
@@ -52,6 +65,102 @@ import {
   X,
   Zap,
 } from "lucide-react";
+
+function TourSidebarButton() {
+  const { startTour } = useOnboarding();
+  return (
+    <button
+      type="button"
+      onClick={startTour}
+      title="Take Interactive Product Tour"
+      aria-label="Take Interactive Product Tour"
+      className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted/70 hover:text-amber-400 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-1.5"
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <Compass className="size-3.5 text-amber-400 shrink-0" />
+        <span className="truncate group-data-[state=collapsed]/sidebar:hidden">
+          Product Tour
+        </span>
+      </div>
+      <span className="text-[10px] font-mono tracking-wider px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20 group-data-[state=collapsed]/sidebar:hidden">
+        Guide
+      </span>
+    </button>
+  );
+}
+
+function ThemeDropdownMenu() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={`Theme: ${theme === "system" ? `System (${resolvedTheme})` : theme} (Click to change)`}
+          aria-label={`Current theme is ${theme}. Click to change theme`}
+          className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-1.5"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {resolvedTheme === "dark" ? (
+              <Sun className="size-3.5 text-amber-400 shrink-0" />
+            ) : (
+              <Moon className="size-3.5 text-primary shrink-0" />
+            )}
+            <span className="truncate group-data-[state=collapsed]/sidebar:hidden">
+              Theme
+            </span>
+          </div>
+          <span className="text-[11px] text-muted-foreground capitalize group-data-[state=collapsed]/sidebar:hidden flex items-center gap-1 font-normal">
+            {theme}
+            <ChevronsUpDown className="size-3 text-muted-foreground/60" />
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-44 mb-1">
+        <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
+          Appearance
+        </DropdownMenuLabel>
+        <DropdownMenuItem
+          onClick={() => setTheme("light")}
+          className={`flex items-center justify-between text-xs cursor-pointer ${
+            theme === "light" ? "text-primary font-semibold" : ""
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Sun className="size-3.5 text-amber-500" />
+            <span>Light</span>
+          </div>
+          {theme === "light" && <Check className="size-3.5 text-primary" />}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setTheme("dark")}
+          className={`flex items-center justify-between text-xs cursor-pointer ${
+            theme === "dark" ? "text-primary font-semibold" : ""
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Moon className="size-3.5 text-blue-400" />
+            <span>Dark</span>
+          </div>
+          {theme === "dark" && <Check className="size-3.5 text-primary" />}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setTheme("system")}
+          className={`flex items-center justify-between text-xs cursor-pointer ${
+            theme === "system" ? "text-primary font-semibold" : ""
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Laptop className="size-3.5 text-muted-foreground" />
+            <span>System</span>
+          </div>
+          {theme === "system" && <Check className="size-3.5 text-primary" />}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const navigationItems = [
   {
@@ -110,7 +219,6 @@ function SidebarLogoToggle() {
 
 function App() {
   const { user, loading, logout } = useAuth();
-  const { resolvedTheme, toggleTheme } = useTheme();
   const [active, setActive] = useState("Dashboard");
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -142,7 +250,8 @@ function App() {
   return (
     <TaskManagerProvider key={`tasks-${user.id}`}>
       <NotesProvider key={`notes-${user.id}`}>
-        <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
+        <OnboardingProvider key={`onboarding-${user.id}`}>
+          <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
         <AnimatedSidebarProvider className="h-full w-full overflow-hidden">
         {/* Animated Desktop & Mobile Sidebar */}
         <AnimatedSidebar
@@ -197,7 +306,7 @@ function App() {
                       Search
                     </AnimatedSidebarMenuButton>
                   </AnimatedSidebarMenuItem>
-                  <AnimatedSidebarMenuItem>
+                  <AnimatedSidebarMenuItem data-tour="ai-copilot-nav">
                     <AnimatedSidebarMenuButton
                       icon={<Sparkles className="size-4 text-amber-400" />}
                       isActive={active === "AI Assistant"}
@@ -221,7 +330,7 @@ function App() {
             </AnimatedSidebarGroup>
 
             {/* Navigation Group */}
-            <AnimatedSidebarGroup className="pt-1">
+            <AnimatedSidebarGroup className="pt-1" data-tour="sidebar-nav">
               <AnimatedSidebarGroupLabel>Platform</AnimatedSidebarGroupLabel>
               <AnimatedSidebarGroupContent>
                 <AnimatedSidebarMenu>
@@ -269,9 +378,9 @@ function App() {
             </AnimatedSidebarGroup>
           </AnimatedSidebarContent>
 
-          {/* Sidebar Footer with Dev Bypass, User Profile, Theme Toggle, and Logout */}
+          {/* Sidebar Footer with Dev Bypass, Tour, Theme Dropdown, and User Profile (Vertically Aligned) */}
           <AnimatedSidebarFooter className="gap-2 border-t border-border/40 p-2">
-            {/* Dev Mode Bypass Indicator / Button */}
+            {/* 1. Dev Mode Bypass Indicator */}
             {isDevUser && (
               <div
                 className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-mono font-medium text-amber-300 transition-colors hover:bg-amber-500/15 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-1.5 group-data-[state=collapsed]/sidebar:py-2"
@@ -290,11 +399,19 @@ function App() {
               </div>
             )}
 
+            {/* 2. Vertically Stacked Controls: Theme Dropdown & Product Tour */}
+            <div className="flex flex-col gap-1 w-full">
+              <ThemeDropdownMenu />
+              <TourSidebarButton />
+            </div>
+
+            {/* User Profile Bar & Logout */}
             <div className="flex w-full items-center justify-between gap-1 overflow-hidden rounded-xl p-1.5 transition-colors hover:bg-muted/50">
               {/* Profile click trigger: clicking icon OR name opens the profile section */}
               <button
                 type="button"
                 onClick={() => setIsProfileOpen(true)}
+                data-tour="user-menu"
                 title="Open profile & settings"
                 aria-label="Open profile and settings"
                 aria-haspopup="dialog"
@@ -318,20 +435,6 @@ function App() {
               </button>
 
               <div className="flex items-center gap-0.5 group-data-[state=collapsed]/sidebar:hidden">
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  title={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
-                  aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
-                  className="grid size-7.5 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
-                >
-                  {resolvedTheme === "dark" ? (
-                    <Sun className="size-3.5 text-amber-400" />
-                  ) : (
-                    <Moon className="size-3.5 text-primary" />
-                  )}
-                </button>
-
                 <button
                   type="button"
                   onClick={logout}
@@ -420,7 +523,14 @@ function App() {
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
       />
+
+      {/* 21st.dev Inspired Onboarding Wizard (Resumable) */}
+      <OnboardingWizard />
+
+      {/* 21st.dev Inspired Spotlight Product Tour */}
+      <ProductTour />
     </div>
+        </OnboardingProvider>
       </NotesProvider>
   </TaskManagerProvider>
   );

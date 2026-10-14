@@ -26,11 +26,12 @@ import {
   TaskPriority,
   TaskStatus,
 } from "@/components/tasks/task-types";
-import {
-  useTaskManager,
-  calculateTimeRemaining,
-} from "@/components/tasks/task-context";
+import { useTaskManager, calculateTimeRemaining } from "@/components/tasks/task-context";
 import { useNotes } from "@/components/notes/note-context";
+import { useOnboarding } from "@/context/OnboardingContext";
+import { OnboardingResumeBanner } from "@/components/onboarding/onboarding-resume-banner";
+import { OnboardingChecklistCard } from "@/components/onboarding/onboarding-checklist-card";
+import { Compass } from "lucide-react";
 
 export type { TaskStatus, TaskPriority, WorkflowTask };
 
@@ -111,6 +112,8 @@ export function DashboardView({
     addNote,
     setSelectedNoteId,
   } = useNotes();
+
+  const { startTour } = useOnboarding();
 
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [newTaskInput, setNewTaskInput] = useState("");
@@ -264,6 +267,15 @@ export function DashboardView({
           )}
           <button
             type="button"
+            onClick={startTour}
+            title="Start interactive product tour"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
+          >
+            <Compass className="size-3.5 text-amber-400" />
+            <span>Tour</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setShowAddNote(!showAddNote)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
           >
@@ -273,8 +285,18 @@ export function DashboardView({
         </div>
       </div>
 
+      {/* Resumable Onboarding Setup Banner */}
+      <OnboardingResumeBanner />
+
+      {/* 21st.dev Getting Started Checklist Card */}
+      <OnboardingChecklistCard
+        onOpenAI={onOpenAI}
+        onOpenTasks={onOpenTasks}
+        onOpenNotes={onOpenNotes}
+      />
+
       {/* 4 Core Workflow Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="metrics-bar">
         {/* 1. Current / In Progress Tasks */}
         <motion.div
           whileHover={{ y: -3 }}
@@ -452,7 +474,7 @@ export function DashboardView({
         {/* Left Column (4 cols) */}
         <div className="space-y-6 lg:col-span-4">
           {/* SECTION 1: Current Tasks & Workflow Board */}
-          <Card className="border-border bg-card/60 backdrop-blur-sm">
+          <Card className="border-border bg-card/60 backdrop-blur-sm" data-tour="task-engine">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>

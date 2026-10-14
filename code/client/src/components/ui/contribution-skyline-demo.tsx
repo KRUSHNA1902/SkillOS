@@ -6,9 +6,9 @@ export default function ContributionSkylineDemo() {
   // w-full is load-bearing: 21st centres every demo in a flex wrapper, and a
   // flex item left at width:auto shrinks to its contents.
   return (
-    <div className="w-full bg-background px-4 py-10 sm:px-8">
+    <div className="w-full min-h-screen bg-[#0d1117] px-4 py-10 sm:px-8 flex items-center justify-center">
       <div className="mx-auto w-full max-w-[980px]">
-        <ContributionSkyline endDate="2017-11-08" />
+        <ContributionSkyline endDate="2017-11-08" palette="github" themeMode="dark" />
       </div>
     </div>
   )

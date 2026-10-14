@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useTaskManager } from "@/components/tasks/task-context";
-import ContributionSkyline, { ContributionDay } from "@/components/ui/contribution-skyline";
+import { useOnboarding } from "@/context/OnboardingContext";
+import ContributionSkyline, { ContributionDay, PaletteName } from "@/components/ui/contribution-skyline";
 import { UserAvatarIcon } from "./user-avatar-icon";
 import {
   X,
@@ -28,6 +29,7 @@ import {
   Minimize2,
   ArrowLeft,
   Calendar,
+  Compass,
 } from "lucide-react";
 
 interface ProfileSettingsDialogProps {
@@ -52,6 +54,7 @@ export function ProfileSettingsDialog({
 }: ProfileSettingsDialogProps) {
   const { user, updateUser, logout } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { startTour, openWizard } = useOnboarding();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -78,24 +81,9 @@ export function ProfileSettingsDialog({
   const { tasks, metrics } = useTaskManager();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Palette matching avatar accent color
-  const skylinePalette = useMemo(() => {
-    switch (accentColor) {
-      case "emerald":
-        return "github";
-      case "blue":
-        return "ocean";
-      case "purple":
-        return "grape";
-      case "rose":
-        return "ember";
-      case "zinc":
-        return "mono";
-      case "amber":
-      default:
-        return "halloween";
-    }
-  }, [accentColor]);
+  // Skyline palette (defaults to iconic GitHub green '#39d353' on dark '#0d1117' background)
+  const [skylinePalette, setSkylinePalette] = useState<PaletteName>("github");
+  const [skylineThemeMode, setSkylineThemeMode] = useState<"dark" | "light" | "auto">("dark");
 
   // Aggregate task contributions for 365 days
   const taskContributionData = useMemo<ContributionDay[]>(() => {
@@ -328,11 +316,64 @@ export function ProfileSettingsDialog({
               </div>
             </div>
 
+            {/* Skyline Controls: Palette & Dark Theme options */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] text-muted-foreground font-medium mr-1">Colorway:</span>
+                {(
+                  [
+                    { id: "github", label: "GitHub Green", color: "#39d353" },
+                    { id: "halloween", label: "Amber Fire", color: "#fa7a18" },
+                    { id: "ocean", label: "Ocean Blue", color: "#7cc7ff" },
+                    { id: "grape", label: "Grape", color: "#c4b5fd" },
+                    { id: "ember", label: "Ember", color: "#ffa46b" },
+                    { id: "mono", label: "Mono", color: "#e5e5e5" },
+                  ] as const
+                ).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSkylinePalette(p.id)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                      skylinePalette === p.id
+                        ? "border-emerald-500/40 bg-emerald-500/15 text-foreground shadow-sm ring-1 ring-emerald-500/30"
+                        : "border-border/60 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <span
+                      className="size-2 rounded-full inline-block"
+                      style={{ backgroundColor: p.color }}
+                    />
+                    <span>{p.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground font-medium mr-1">Canvas:</span>
+                {(["dark", "auto"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setSkylineThemeMode(mode)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                      skylineThemeMode === mode
+                        ? "border-primary/40 bg-primary/15 text-primary shadow-sm"
+                        : "border-border/60 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {mode === "dark" ? "GitHub Dark (#0d1117)" : "Match App"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Skyline Component */}
             <div className="w-full overflow-hidden">
               <ContributionSkyline
                 data={taskContributionData}
                 palette={skylinePalette}
+                themeMode={skylineThemeMode}
                 title={
                   <span>
                     <span className="font-semibold tabular-nums">{metrics.completed}</span> tasks completed across engineering sprints
@@ -709,6 +750,45 @@ export function ProfileSettingsDialog({
                 }`}
               />
             </button>
+          </div>
+
+          {/* Onboarding & Guided Tours */}
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <Compass className="size-3.5 text-amber-400" />
+                <span className="text-xs font-semibold text-foreground">
+                  Onboarding & Guided Tours
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground block mt-0.5">
+                Revisit the interactive spotlight walkthrough or reset your learner persona and track setup
+              </span>
+            </div>
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  startTour();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-amber-300 transition-colors cursor-pointer"
+              >
+                <Sparkles className="size-3.5" />
+                <span>Take Product Tour</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openWizard(1);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-card/60 px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                <Sliders className="size-3.5" />
+                <span>Relaunch Onboarding Setup</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
