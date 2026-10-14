@@ -1,15 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
   WorkflowTask,
   TaskPriority,
-  TaskStatus,
   TaskTimelineStage,
   DeadlineAlert,
   TaskMetrics,
 } from "./task-types";
 
 export const STORAGE_KEY = "skillos_workflow_tasks_v2";
+
+export type SyncStatus = "synced" | "syncing" | "local_dev" | "offline_cached" | "error";
 
 const initialTasksSeed: WorkflowTask[] = [
   {
@@ -137,7 +138,7 @@ export function calculateTimeRemaining(deadlineIso: string): {
   isDueToday: boolean;
 } {
   const target = new Date(deadlineIso).getTime();
-  const now = new Date("2026-10-13T16:41:33").getTime(); // Synced with platform reference clock
+  const now = new Date("2026-10-13T16:41:33").getTime();
   const diffMs = target - now;
   const isOverdue = diffMs < 0;
   const absMs = Math.abs(diffMs);
@@ -145,11 +146,10 @@ export function calculateTimeRemaining(deadlineIso: string): {
   const diffHours = Math.floor(absMs / (1000 * 60 * 60));
   const diffDays = Math.floor(absMs / (1000 * 60 * 60 * 24));
 
-  // Determine if it's due today
   const deadlineDate = new Date(deadlineIso);
   const isDueToday =
     deadlineDate.getFullYear() === 2026 &&
-    deadlineDate.getMonth() === 9 && // October (0-indexed)
+    deadlineDate.getMonth() === 9 &&
     deadlineDate.getDate() === 13;
 
   let formatted = "";
@@ -171,6 +171,8 @@ interface TaskManagerContextType {
   activeAlerts: DeadlineAlert[];
   dismissedAlertIds: string[];
   metrics: TaskMetrics;
+  syncStatus: SyncStatus;
+  syncWithCloud: () => Promise<void>;
   addTask: (
     taskData: Omit<WorkflowTask, "id" | "createdAt"> & { id?: string }
   ) => WorkflowTask;
@@ -198,6 +200,10 @@ export function TaskManagerProvider({
   const storageKey = user ? `skillos_workflow_tasks_${user.id}` : "skillos_workflow_tasks_guest";
   const alertsKey = user ? `skillos_dismissed_alerts_${user.id}` : "skillos_dismissed_alerts_guest";
 
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() =>
+    isDevUser ? "local_dev" : "syncing"
+  );
+
   const [tasks, setTasks] = useState<WorkflowTask[]>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -207,7 +213,6 @@ export function TaskManagerProvider({
           return parsed;
         }
       }
-      // If dev user and nothing in personal key, check legacy key
       if (isDevUser) {
         const legacy = localStorage.getItem("skillos_workflow_tasks_v2");
         if (legacy) {
@@ -217,9 +222,8 @@ export function TaskManagerProvider({
         return initialTasksSeed;
       }
     } catch {
-      // Fallback on error
+      // Fallback
     }
-    // Regular users start with clean slate []
     return [];
   });
 
@@ -238,9 +242,7 @@ export function TaskManagerProvider({
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(tasks));
-    } catch {
-      // localStorage quota or private mode guard
-    }
+    } catch {}
   }, [tasks, storageKey]);
 
   // Persist dismissed alerts in localStorage scoped to current user
@@ -249,6 +251,70 @@ export function TaskManagerProvider({
       localStorage.setItem(alertsKey, JSON.stringify(dismissedAlertIds));
     } catch {}
   }, [dismissedAlertIds, alertsKey]);
+
+  // Cloud Database Synchronization Engine
+  const syncWithCloud = useCallback(async () => {
+    if (isDevUser) {
+      setSyncStatus("local_dev");
+      return;
+    }
+
+    if (!user) {
+      setSyncStatus("offline_cached");
+      return;
+    }
+
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch("/api/tasks", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.tableNotCreated) {
+          setSyncStatus("offline_cached");
+          return;
+        }
+
+        if (Array.isArray(data.tasks)) {
+          if (data.tasks.length > 0) {
+            setTasks(data.tasks);
+            setSyncStatus("synced");
+          } else {
+            // If remote database is empty but user has local tasks, push local to remote
+            const localSaved = localStorage.getItem(storageKey);
+            const currentTasks = localSaved ? JSON.parse(localSaved) : tasks;
+            if (Array.isArray(currentTasks) && currentTasks.length > 0) {
+              // Background batch seed to Supabase
+              for (const t of currentTasks) {
+                fetch("/api/tasks", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(t),
+                  credentials: "include",
+                }).catch(() => {});
+              }
+            }
+            setSyncStatus("synced");
+          }
+        }
+      } else {
+        setSyncStatus("offline_cached");
+      }
+    } catch (err) {
+      console.warn("[TaskManager] Failed to reach /api/tasks:", err);
+      setSyncStatus("offline_cached");
+    }
+  }, [isDevUser, user, storageKey, tasks]);
+
+  // Trigger initial cloud fetch on user login/auth change
+  useEffect(() => {
+    let active = true;
+    if (active) {
+      syncWithCloud();
+    }
+    return () => {
+      active = false;
+    };
+  }, [user?.id, isDevUser, syncWithCloud]);
 
   // Compute real-time deadline alerts
   const activeAlerts = useMemo<DeadlineAlert[]>(() => {
@@ -297,7 +363,6 @@ export function TaskManagerProvider({
       }
     });
 
-    // Sort alerts: Overdue first, then Urgent priority, then Soonest
     return alerts.sort((a, b) => {
       if (a.type === "overdue" && b.type !== "overdue") return -1;
       if (b.type === "overdue" && a.type !== "overdue") return 1;
@@ -344,7 +409,7 @@ export function TaskManagerProvider({
     };
   }, [tasks]);
 
-  // Add Task
+  // Add Task (Optimistic UI + Background Cloud DB Sync)
   const addTask = (
     taskData: Omit<WorkflowTask, "id" | "createdAt"> & { id?: string }
   ): WorkflowTask => {
@@ -357,11 +422,27 @@ export function TaskManagerProvider({
     };
 
     setTasks((prev) => [newTask, ...prev]);
+
+    // Background Cloud Sync
+    if (!isDevUser && user) {
+      fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTask),
+        credentials: "include",
+      })
+        .then((res) => {
+          if (res.ok) setSyncStatus("synced");
+        })
+        .catch(() => setSyncStatus("offline_cached"));
+    }
+
     return newTask;
   };
 
-  // Update Task
+  // Update Task (Optimistic UI + Background Cloud DB Sync)
   const updateTask = (id: string, updates: Partial<WorkflowTask>) => {
+    let updatedPayload: WorkflowTask | null = null;
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
@@ -371,15 +452,42 @@ export function TaskManagerProvider({
           updated.timelineStage = "completed";
           updated.dueDate = "Completed";
         }
+        updatedPayload = updated;
         return updated;
       })
     );
+
+    // Background Cloud Sync
+    if (!isDevUser && user && updatedPayload) {
+      fetch(`/api/tasks/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+        credentials: "include",
+      })
+        .then((res) => {
+          if (res.ok) setSyncStatus("synced");
+        })
+        .catch(() => setSyncStatus("offline_cached"));
+    }
   };
 
-  // Delete Individual Task
+  // Delete Individual Task (Optimistic UI + Background Cloud DB Sync)
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     setDismissedAlertIds((prev) => prev.filter((alertId) => alertId !== id));
+
+    // Background Cloud Sync
+    if (!isDevUser && user) {
+      fetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+        .then((res) => {
+          if (res.ok) setSyncStatus("synced");
+        })
+        .catch(() => setSyncStatus("offline_cached"));
+    }
   };
 
   // Delete Old Tasks (bulk cleanup)
@@ -397,31 +505,33 @@ export function TaskManagerProvider({
       });
       return filtered;
     });
+
+    // Background Cloud Sync
+    if (!isDevUser && user) {
+      fetch("/api/tasks/cleanup/completed", {
+        method: "DELETE",
+        credentials: "include",
+      })
+        .then((res) => {
+          if (res.ok) setSyncStatus("synced");
+        })
+        .catch(() => setSyncStatus("offline_cached"));
+    }
+
     return deletedCount;
   };
 
   // Toggle Task Status
   const toggleTaskStatus = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const isNowCompleted = t.status !== "completed";
-        const nextStatus: TaskStatus = isNowCompleted
-          ? "completed"
-          : "in_progress";
-        const nextStage: TaskTimelineStage = isNowCompleted
-          ? "completed"
-          : "in_progress";
-
-        return {
-          ...t,
-          status: nextStatus,
-          timelineStage: nextStage,
-          completedAt: isNowCompleted ? new Date().toISOString() : undefined,
-          dueDate: isNowCompleted ? "Completed" : "Today",
-        };
-      })
-    );
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const isNowCompleted = task.status !== "completed";
+    updateTask(id, {
+      status: isNowCompleted ? "completed" : "in_progress",
+      timelineStage: isNowCompleted ? "completed" : "in_progress",
+      completedAt: isNowCompleted ? new Date().toISOString() : undefined,
+      dueDate: isNowCompleted ? "Completed" : "Today",
+    });
   };
 
   // Change Priority
@@ -440,9 +550,9 @@ export function TaskManagerProvider({
 
   // Toggle Reminder Alert
   const toggleReminderAlert = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, reminderAlert: !t.reminderAlert } : t))
-    );
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    updateTask(id, { reminderAlert: !task.reminderAlert });
   };
 
   // Dismiss Alert
@@ -455,6 +565,17 @@ export function TaskManagerProvider({
   const resetDefaultTasks = () => {
     setTasks(initialTasksSeed);
     setDismissedAlertIds([]);
+    if (!isDevUser && user) {
+      // Seed to cloud DB
+      for (const t of initialTasksSeed) {
+        fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(t),
+          credentials: "include",
+        }).catch(() => {});
+      }
+    }
   };
 
   return (
@@ -464,6 +585,8 @@ export function TaskManagerProvider({
         activeAlerts,
         dismissedAlertIds,
         metrics,
+        syncStatus,
+        syncWithCloud,
         addTask,
         updateTask,
         deleteTask,

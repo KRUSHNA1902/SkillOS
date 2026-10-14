@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
+import tasksRoutes from './routes/tasks.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +53,9 @@ app.use('/api/auth', authRoutes);
 
 // AI & Gemini routes
 app.use('/api/ai', aiRoutes);
+
+// Task routes
+app.use('/api/tasks', tasksRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req, res) => {

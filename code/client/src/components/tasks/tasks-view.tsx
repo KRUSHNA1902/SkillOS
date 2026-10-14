@@ -20,6 +20,10 @@ import {
   LayoutList,
   Flame,
   ArrowUpDown,
+  Cloud,
+  Database,
+  HardDrive,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -55,6 +59,8 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
   const {
     tasks,
     metrics,
+    syncStatus,
+    syncWithCloud,
     addTask,
     updateTask,
     deleteTask,
@@ -230,9 +236,49 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
             <div className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
               <ListTodo className="size-5" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Task Operations & Timeline
-            </h1>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Task Operations & Timeline
+              </h1>
+              {syncStatus === "synced" && (
+                <span
+                  title="Synchronized with Supabase PostgreSQL cloud database"
+                  className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+                >
+                  <Cloud className="size-3 text-emerald-500 dark:text-emerald-400" />
+                  <span>Cloud DB Synced</span>
+                </span>
+              )}
+              {syncStatus === "syncing" && (
+                <span
+                  title="Synchronizing tasks with Supabase cloud database..."
+                  className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400"
+                >
+                  <RefreshCw className="size-3 animate-spin text-blue-500 dark:text-blue-400" />
+                  <span>Syncing...</span>
+                </span>
+              )}
+              {syncStatus === "local_dev" && (
+                <span
+                  title="Running in local Dev Bypass mode. Tasks cached locally."
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                >
+                  <Database className="size-3 text-amber-500 dark:text-amber-400" />
+                  <span>Local Dev Mode</span>
+                </span>
+              )}
+              {syncStatus === "offline_cached" && (
+                <button
+                  type="button"
+                  onClick={syncWithCloud}
+                  title="Using offline cache. Click to retry syncing with Supabase."
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-500/30 bg-slate-500/10 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-slate-500/20 cursor-pointer"
+                >
+                  <HardDrive className="size-3" />
+                  <span>Offline Cache (Click to sync)</span>
+                </button>
+              )}
+            </div>
           </div>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Interactive task management with deadlines, priorities, reminders, notes, and chronological timelines.
@@ -241,6 +287,15 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={syncWithCloud}
+            title="Sync with cloud database"
+            className="grid size-8 place-items-center rounded-xl border border-border/80 bg-card text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors shadow-xs"
+          >
+            <RefreshCw className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin text-primary" : ""}`} />
+          </button>
+
           {onNavigateToAI && (
             <button
               type="button"
