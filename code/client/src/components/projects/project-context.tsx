@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
+import { useTags } from "@/components/tags/tag-context";
 import {
   Project,
   ProjectMilestone,
@@ -477,6 +478,8 @@ interface ProjectsContextType {
   exportProjectMarkdown: (project: Project) => void;
   exportAllProjectsMarkdown: () => void;
   resetToInitialProjects: () => void;
+  batchRenameTag: (oldName: string, newName: string) => void;
+  batchRemoveTag: (tagName: string) => void;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
@@ -528,6 +531,44 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       console.warn("[ProjectsProvider] Error saving projects to localStorage:", e);
     }
   }, [projects]);
+
+  // Hook into Central Tag System for automatic rename and delete sync
+  const { registerTagRenameListener, registerTagDeleteListener } = useTags();
+
+  const batchRenameTag = useCallback((oldName: string, newName: string) => {
+    setProjects((prev) =>
+      prev.map((p) => ({
+        ...p,
+        tags: p.tags?.map((tag) =>
+          tag.toLowerCase() === oldName.toLowerCase() ? newName : tag
+        ),
+      }))
+    );
+  }, []);
+
+  const batchRemoveTag = useCallback((tagName: string) => {
+    setProjects((prev) =>
+      prev.map((p) => ({
+        ...p,
+        tags: p.tags?.filter(
+          (tag) => tag.toLowerCase() !== tagName.toLowerCase()
+        ),
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    const unregisterRename = registerTagRenameListener((oldName, newName) => {
+      batchRenameTag(oldName, newName);
+    });
+    const unregisterDelete = registerTagDeleteListener((tagName) => {
+      batchRemoveTag(tagName);
+    });
+    return () => {
+      unregisterRename();
+      unregisterDelete();
+    };
+  }, [registerTagRenameListener, registerTagDeleteListener, batchRenameTag, batchRemoveTag]);
 
   const selectedProject = useMemo(() => {
     return projects.find((p) => p.id === selectedProjectId) || null;
@@ -948,6 +989,8 @@ ${p.descriptionMarkdown}
         exportProjectMarkdown,
         exportAllProjectsMarkdown,
         resetToInitialProjects,
+        batchRenameTag,
+        batchRemoveTag,
       }}
     >
       {children}

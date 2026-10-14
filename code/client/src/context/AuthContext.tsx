@@ -10,6 +10,8 @@ export interface User {
   bio?: string;
   skills?: string[];
   accentColor?: string;
+  avatarType?: 'icon' | 'initials';
+  avatarIcon?: string;
   settings?: {
     compactMode?: boolean;
     emailAlerts?: boolean;
@@ -142,6 +144,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       bio: customDev?.bio || 'Full stack engineer building intelligent workflow operating systems.',
       skills: customDev?.skills || ['TypeScript', 'React', 'Tailwind', 'AI Agents', 'Supabase'],
       accentColor: customDev?.accentColor || 'amber',
+      avatarType: customDev?.avatarType || 'icon',
+      avatarIcon: customDev?.avatarIcon || 'user',
       settings: {
         compactMode: false,
         emailAlerts: true,

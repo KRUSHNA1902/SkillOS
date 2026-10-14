@@ -25,6 +25,8 @@ import {
   HardDrive,
   RefreshCw,
   FolderKanban,
+  Tag,
+  Settings2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +37,8 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTaskManager, calculateTimeRemaining } from "./task-context";
+import { useTags } from "@/components/tags/tag-context";
+import { cn } from "@/lib/utils";
 import {
   WorkflowTask,
   TaskPriority,
@@ -71,13 +75,29 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
     toggleReminderAlert,
     loadStarterTemplates,
   } = useTaskManager();
+  const { getTagClass, openTagManager } = useTags();
 
   // View state
   const [viewMode, setViewMode] = useState<"list" | "timeline">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus | "overdue">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TaskPriority>("all");
+  const [selectedTag, setSelectedTag] = useState<"all" | string>("all");
   const [sortBy, setSortBy] = useState<"deadline" | "priority" | "newest" | "title">("deadline");
+
+  // Live top tags across workflow tasks
+  const taskTopTags = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tasks.forEach((t) => {
+      t.tags?.forEach((tag) => {
+        const clean = tag.trim();
+        if (clean) counts[clean] = (counts[clean] || 0) + 1;
+      });
+    });
+    return Object.entries(counts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [tasks]);
 
   // Fast inline task creation
   const [quickTitle, setQuickTitle] = useState("");
@@ -160,7 +180,8 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
           const matchTitle = task.title.toLowerCase().includes(q);
           const matchCategory = task.category.toLowerCase().includes(q);
           const matchNotes = task.notes?.toLowerCase().includes(q) ?? false;
-          if (!matchTitle && !matchCategory && !matchNotes) return false;
+          const matchTags = task.tags?.some((t) => t.toLowerCase().includes(q)) ?? false;
+          if (!matchTitle && !matchCategory && !matchNotes && !matchTags) return false;
         }
 
         // Status filter
@@ -175,6 +196,13 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
         // Priority filter
         if (priorityFilter !== "all" && task.priority !== priorityFilter) {
           return false;
+        }
+
+        // Tag filter
+        if (selectedTag !== "all") {
+          if (!task.tags || !task.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())) {
+            return false;
+          }
         }
 
         return true;
@@ -560,6 +588,52 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
             ))}
           </div>
         </div>
+
+        {/* Tag Filter Row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-border/60 text-xs scrollbar-none">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+            <Tag className="size-3 text-muted-foreground" />
+            <span>Filter by Tag:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedTag("all")}
+            className={cn(
+              "rounded-md px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer",
+              selectedTag === "all"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            All Tags
+          </button>
+          {taskTopTags.map(({ tag, count }) => {
+            const isSelected = selectedTag === tag;
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setSelectedTag(isSelected ? "all" : tag)}
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5",
+                  getTagClass(tag, isSelected)
+                )}
+              >
+                <span>#{tag}</span>
+                <span className="text-[9px] opacity-75">({count})</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => openTagManager()}
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-border/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shrink-0 ml-1 cursor-pointer"
+            title="Create, edit, colorize, and delete tags"
+          >
+            <Settings2 className="size-3" />
+            <span>Manage Tags</span>
+          </button>
+        </div>
       </Card>
 
       {/* Content Rendering: List View vs Timeline View */}
@@ -758,6 +832,23 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
                               <span className="rounded-md bg-muted/70 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                                 {task.timelineStage.replace("_", " ")}
                               </span>
+
+                              {/* Task Tags */}
+                              {task.tags && task.tags.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {task.tags.map((t) => (
+                                    <span
+                                      key={t}
+                                      className={cn(
+                                        "rounded border px-1.5 py-0.2 text-[9px] font-mono",
+                                        getTagClass(t)
+                                      )}
+                                    >
+                                      #{t}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             {/* Meta & Deadline */}

@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { WorkflowTask } from "./task-types";
 import { useTaskManager, calculateTimeRemaining } from "./task-context";
+import { useTags } from "@/components/tags/tag-context";
+import { cn } from "@/lib/utils";
 
 interface TaskTimelineViewProps {
   onEditTask: (task: WorkflowTask) => void;
@@ -23,6 +25,7 @@ export function TaskTimelineView({ onEditTask }: TaskTimelineViewProps) {
     toggleTaskStatus,
     deleteTask,
   } = useTaskManager();
+  const { getTagClass } = useTags();
 
   const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
 
@@ -226,10 +229,25 @@ export function TaskTimelineView({ onEditTask }: TaskTimelineViewProps) {
                             </div>
 
                             {/* Metadata Pills */}
-                            <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
                               <span className="font-medium text-foreground/80">
                                 {task.category}
                               </span>
+                              {task.tags && task.tags.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {task.tags.map((t) => (
+                                    <span
+                                      key={t}
+                                      className={cn(
+                                        "rounded border px-1.5 py-0.2 text-[9px] font-mono",
+                                        getTagClass(t)
+                                      )}
+                                    >
+                                      #{t}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               <span>•</span>
                               <span className="flex items-center gap-1">
                                 <Clock className="size-3 text-muted-foreground" />

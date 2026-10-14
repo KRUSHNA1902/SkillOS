@@ -29,6 +29,8 @@ import { NotesView } from "@/components/notes/notes-view";
 import { NotesProvider } from "@/components/notes/note-context";
 import { ProjectsView } from "@/components/projects/projects-view";
 import { ProjectsProvider } from "@/components/projects/project-context";
+import { TagProvider } from "@/components/tags/tag-context";
+import { TagManagementModal } from "@/components/tags/tag-management-modal";
 import { InboxView } from "@/components/inbox/inbox-view";
 import { InboxProvider, useInbox } from "@/components/inbox/inbox-context";
 import { AIAssistantView } from "@/components/ai/ai-assistant-view";
@@ -279,8 +281,9 @@ function App() {
     displayName.charAt(0).toUpperCase() + displayName.slice(1);
 
   return (
-    <ProjectsProvider key={`projects-${user.id}`}>
-      <TaskManagerProvider key={`tasks-${user.id}`}>
+    <TagProvider key={`tags-${user.id}`}>
+      <ProjectsProvider key={`projects-${user.id}`}>
+        <TaskManagerProvider key={`tasks-${user.id}`}>
         <NotesProvider key={`notes-${user.id}`}>
           <InboxProvider key={`inbox-${user.id}`}>
             <OnboardingProvider key={`onboarding-${user.id}`}>
@@ -452,6 +455,8 @@ function App() {
                   email={user.email}
                   size="md"
                   accentColor={user.accentColor}
+                  avatarType={user.avatarType}
+                  avatarIcon={user.avatarIcon}
                   className="group-hover/profile:scale-105"
                 />
                 <div className="min-w-0 flex-1 group-data-[state=collapsed]/sidebar:hidden">
@@ -596,12 +601,16 @@ function App() {
 
       {/* 21st.dev Inspired Spotlight Product Tour */}
       <ProductTour />
+
+      {/* Universal Cross-Entity Tag Management Modal */}
+      <TagManagementModal />
     </div>
           </OnboardingProvider>
         </InboxProvider>
       </NotesProvider>
   </TaskManagerProvider>
     </ProjectsProvider>
+    </TagProvider>
   );
 }
 

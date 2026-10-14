@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   FolderKanban,
   Plus,
@@ -13,6 +13,10 @@ import {
   CheckCircle2,
   Star,
   X,
+  Tag,
+  Settings2,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import {
   Project,
@@ -21,12 +25,25 @@ import {
   ProjectViewMode,
 } from "./project-types";
 import { useProjects } from "./project-context";
+import { useTags } from "@/components/tags/tag-context";
 import { ProjectCard, TRACK_THEMES, STATUS_CONFIG } from "./project-card";
 import { ProjectModal } from "./project-modal";
 import { ProjectKanbanBoard } from "./project-kanban-board";
 import { ProjectTimelineView } from "./project-timeline-view";
 import { ProjectDetailsInspector } from "./project-details-inspector";
 import { cn } from "@/lib/utils";
+
+const VIEW_OPTIONS: {
+  id: ProjectViewMode;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  desc: string;
+}[] = [
+  { id: "grid", label: "Showcase Grid", icon: LayoutGrid, desc: "Portfolio card grid" },
+  { id: "kanban", label: "Sprint Kanban", icon: Columns4, desc: "Stage-based sprint board" },
+  { id: "timeline", label: "Roadmap Timeline", icon: Calendar, desc: "Milestones & deadlines" },
+  { id: "list", label: "List Table", icon: List, desc: "High-density tabular view" },
+];
 
 interface ProjectsViewProps {
   initialFilter?: "all" | "in_progress" | "completed";
@@ -48,15 +65,48 @@ export function ProjectsView({
     updateProject,
     exportAllProjectsMarkdown,
   } = useProjects();
+  const { getTagClass, openTagManager } = useTags();
 
   // View mode defaults to "grid" (Showcase Grid View) as requested by user
   const [viewMode, setViewMode] = useState<ProjectViewMode>("grid");
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close view dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
+        setIsViewMenuOpen(false);
+      }
+    }
+    if (isViewMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isViewMenuOpen]);
+
+  // Close view dropdown on Escape
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && isViewMenuOpen) {
+        setIsViewMenuOpen(false);
+      }
+    }
+    if (isViewMenuOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isViewMenuOpen]);
+
+  const currentViewOption = VIEW_OPTIONS.find((v) => v.id === viewMode) || VIEW_OPTIONS[0];
+  const CurrentViewIcon = currentViewOption.icon;
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>(
     initialFilter === "all" ? "all" : (initialFilter as ProjectStatus)
   );
   const [trackFilter, setTrackFilter] = useState<"all" | ProjectTrack>("all");
+  const [selectedTag, setSelectedTag] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"updated" | "progress" | "targetDate" | "priority" | "title">("updated");
 
@@ -64,6 +114,19 @@ export function ProjectsView({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [inspectingProject, setInspectingProject] = useState<Project | null>(null);
+
+  // Compute top tags used across projects
+  const projectTopTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    projects.forEach((p) => {
+      p.tags?.forEach((t) => {
+        counts.set(t, (counts.get(t) || 0) + 1);
+      });
+    });
+    return Array.from(counts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [projects]);
 
   // Sync initialFilter prop if changed from sidebar
   useEffect(() => {
@@ -92,6 +155,11 @@ export function ProjectsView({
         // Track filter
         if (trackFilter !== "all" && project.track !== trackFilter) return false;
 
+        // Tag filter
+        if (selectedTag !== "all") {
+          if (!project.tags || !project.tags.includes(selectedTag)) return false;
+        }
+
         // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
@@ -99,7 +167,8 @@ export function ProjectsView({
           const matchTagline = project.tagline.toLowerCase().includes(q);
           const matchTrack = project.track.toLowerCase().includes(q);
           const matchTech = project.techStack.some((t) => t.toLowerCase().includes(q));
-          if (!matchTitle && !matchTagline && !matchTrack && !matchTech) return false;
+          const matchTags = project.tags?.some((t) => t.toLowerCase().includes(q));
+          if (!matchTitle && !matchTagline && !matchTrack && !matchTech && !matchTags) return false;
         }
 
         return true;
@@ -117,7 +186,7 @@ export function ProjectsView({
         if (sortBy === "title") return a.title.localeCompare(b.title);
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       });
-  }, [projects, statusFilter, trackFilter, searchQuery, sortBy]);
+  }, [projects, statusFilter, trackFilter, selectedTag, searchQuery, sortBy]);
 
   const handleOpenEdit = (project: Project) => {
     setEditingProject(project);
@@ -253,9 +322,9 @@ export function ProjectsView({
         </div>
 
         {/* Filter Toolbar & View Switcher */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-2">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5 flex-wrap no-scrollbar scrollbar-none">
             {[
               { id: "all", label: "All Projects", count: metrics.total },
               { id: "in_progress", label: "In Progress", count: metrics.inProgress },
@@ -290,7 +359,7 @@ export function ProjectsView({
           </div>
 
           {/* Controls: Search, Track Filter, Sort, View Switcher */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Search Box */}
             <div className="relative min-w-[200px] flex-1 sm:flex-none">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
@@ -340,65 +409,110 @@ export function ProjectsView({
               <option value="title">Alphabetical</option>
             </select>
 
-            {/* View Mode Switcher (Grid, Kanban, Timeline, List) */}
-            <div className="flex items-center rounded-xl border border-border/80 bg-card p-0.5">
+            {/* View Mode Dropdown Menu */}
+            <div className="relative" ref={viewMenuRef}>
               <button
                 type="button"
-                onClick={() => setViewMode("grid")}
-                title="Showcase Grid View (Portfolio Focus)"
+                onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
                 className={cn(
-                  "grid size-7.5 place-items-center rounded-lg transition-colors cursor-pointer",
-                  viewMode === "grid"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
+                  "flex items-center gap-1.5 rounded-xl border border-border/80 bg-card px-2.5 py-1.5 text-xs text-foreground hover:bg-muted/50 transition-colors focus:border-primary focus:outline-none cursor-pointer shadow-xs",
+                  isViewMenuOpen && "border-primary ring-1 ring-primary/20"
                 )}
+                title="Change project view mode"
+                aria-expanded={isViewMenuOpen}
+                aria-haspopup="true"
               >
-                <LayoutGrid className="size-3.5" />
+                <CurrentViewIcon className="size-3.5 text-primary" />
+                <span className="font-medium">{currentViewOption.label}</span>
+                <ChevronDown className={cn("size-3 text-muted-foreground transition-transform duration-200", isViewMenuOpen && "rotate-180")} />
               </button>
 
-              <button
-                type="button"
-                onClick={() => setViewMode("kanban")}
-                title="Sprint Kanban Board View (Workflow Focus)"
-                className={cn(
-                  "grid size-7.5 place-items-center rounded-lg transition-colors cursor-pointer",
-                  viewMode === "kanban"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Columns4 className="size-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode("timeline")}
-                title="Roadmap Timeline View (Gantt Milestones)"
-                className={cn(
-                  "grid size-7.5 place-items-center rounded-lg transition-colors cursor-pointer",
-                  viewMode === "timeline"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Calendar className="size-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                title="High-Density List View"
-                className={cn(
-                  "grid size-7.5 place-items-center rounded-lg transition-colors cursor-pointer",
-                  viewMode === "list"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <List className="size-3.5" />
-              </button>
+              {isViewMenuOpen && (
+                <div className="absolute right-0 mt-1.5 w-52 rounded-xl border border-border/80 bg-card/95 backdrop-blur-md p-1.5 shadow-xl z-30 space-y-0.5 animate-in fade-in-0 zoom-in-95">
+                  <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Project View Mode
+                  </div>
+                  {VIEW_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    const isSelected = viewMode === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setViewMode(option.id);
+                          setIsViewMenuOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors cursor-pointer text-left",
+                          isSelected
+                            ? "bg-primary/10 text-primary font-semibold"
+                            : "text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon className={cn("size-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
+                          <div>
+                            <p className="leading-tight">{option.label}</p>
+                            <span className="text-[10px] text-muted-foreground font-normal block leading-tight mt-0.5">
+                              {option.desc}
+                            </span>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
+        </div>
+
+        {/* Unified Tag Filter Row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-1 text-xs no-scrollbar scrollbar-none">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+            <Tag className="size-3 text-muted-foreground" />
+            <span>Filter by Tag:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedTag("all")}
+            className={cn(
+              "rounded-md px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer",
+              selectedTag === "all"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            All Tags
+          </button>
+          {projectTopTags.map(({ tag, count }) => {
+            const isSelected = selectedTag === tag;
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setSelectedTag(isSelected ? "all" : tag)}
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5",
+                  getTagClass(tag, isSelected)
+                )}
+              >
+                <span>#{tag}</span>
+                <span className="text-[9px] opacity-75">({count})</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => openTagManager()}
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-border/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shrink-0 ml-1 cursor-pointer"
+            title="Create, edit, colorize, and delete tags"
+          >
+            <Settings2 className="size-3" />
+            <span>Manage Tags</span>
+          </button>
         </div>
 
         {/* View Mode Content Area */}
@@ -417,6 +531,7 @@ export function ProjectsView({
                 onClick={() => {
                   setStatusFilter("all");
                   setTrackFilter("all");
+                  setSelectedTag("all");
                   setSearchQuery("");
                 }}
                 className="rounded-xl border border-border/80 px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"

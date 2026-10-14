@@ -18,6 +18,7 @@ import {
   Github,
   AlertCircle,
   Lightbulb,
+  Tag,
 } from "lucide-react";
 import {
   Project,
@@ -26,6 +27,7 @@ import {
   ProjectStatus,
   ProjectMilestone,
 } from "./project-types";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { generateProjectMilestones } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
 
@@ -99,6 +101,7 @@ export function ProjectModal({
   // Tech stack & links
   const [techStack, setTechStack] = useState<string[]>([]);
   const [techInput, setTechInput] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [repoUrl, setRepoUrl] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
   const [docsUrl, setDocsUrl] = useState("");
@@ -127,6 +130,11 @@ export function ProjectModal({
       setLoggedHours(initialProject.loggedHours);
       setPinned(initialProject.pinned);
       setTechStack([...initialProject.techStack]);
+      setTags(
+        initialProject.tags && initialProject.tags.length > 0
+          ? [...initialProject.tags]
+          : ["Analytics", "Architecture"]
+      );
       setRepoUrl(initialProject.repoUrl || "");
       setDemoUrl(initialProject.demoUrl || "");
       setDocsUrl(initialProject.docsUrl || "");
@@ -146,6 +154,7 @@ export function ProjectModal({
       setLoggedHours(0);
       setPinned(false);
       setTechStack(["Python", "PostgreSQL"]);
+      setTags(["Analytics", "Architecture"]);
       setRepoUrl("");
       setDemoUrl("");
       setDocsUrl("");
@@ -331,6 +340,7 @@ export function ProjectModal({
       docsUrl: docsUrl.trim() || undefined,
       milestones,
       architectureNotes: architectureNotes.trim() || undefined,
+      tags: tags.length > 0 ? tags : [track.split(" ")[0] || "General"],
       linkedTaskIds: initialProject?.linkedTaskIds || [],
       linkedNoteIds: initialProject?.linkedNoteIds || [],
     });
@@ -376,7 +386,7 @@ export function ProjectModal({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-1 border-b border-border/50 px-6 pt-2 bg-muted/10 overflow-x-auto">
+          <div className="flex items-center gap-1 border-b border-border/50 px-6 pt-2 bg-muted/10 overflow-x-auto no-scrollbar scrollbar-none">
             <button
               type="button"
               onClick={() => setActiveTab("general")}
@@ -594,6 +604,24 @@ export function ProjectModal({
             {/* TAB 2: TECH STACK & EXTERNAL LINKS */}
             {activeTab === "tech" && (
               <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                    <Tag className="size-3.5 text-primary" />
+                    <span>Project Tags</span>
+                    <span className="text-[10px] text-muted-foreground/70 font-normal">
+                      (Unified with Notes & Tasks)
+                    </span>
+                  </label>
+                  <TagPicker
+                    selectedTags={tags}
+                    onChange={setTags}
+                    placeholder="Select or create tags (e.g. frontend, sprint-1, ai)..."
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Tags are shared cross-workspace for global filtering and organization.
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                     Technologies & Frameworks

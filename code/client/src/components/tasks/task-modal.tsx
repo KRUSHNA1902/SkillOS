@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Check,
   FolderKanban,
+  Tag,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ import {
   TaskStatus,
 } from "./task-types";
 import { useProjects } from "@/components/projects/project-context";
+import { TagPicker } from "@/components/tags/tag-picker";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -74,6 +76,7 @@ export function TaskModal({
   const [reminderAlert, setReminderAlert] = useState(true);
   const [status, setStatus] = useState<TaskStatus>("in_progress");
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (initialTask) {
@@ -86,6 +89,11 @@ export function TaskModal({
       setReminderAlert(initialTask.reminderAlert ?? true);
       setStatus(initialTask.status);
       setProjectId(initialTask.projectId);
+      setTags(
+        initialTask.tags && initialTask.tags.length > 0
+          ? [...initialTask.tags]
+          : [initialTask.category || "General"]
+      );
     } else {
       setTitle("");
       setCategory("Frontend UI");
@@ -96,6 +104,7 @@ export function TaskModal({
       setReminderAlert(true);
       setStatus("in_progress");
       setProjectId(undefined);
+      setTags(["Frontend UI"]);
     }
   }, [initialTask, isOpen]);
 
@@ -159,6 +168,7 @@ export function TaskModal({
       reminderAlert,
       projectId,
       projectName: selectedProject?.title,
+      tags: tags.length > 0 ? tags : [category.trim() || "General"],
     });
 
     onClose();
@@ -418,6 +428,24 @@ export function TaskModal({
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+
+              {/* Task Tags & Cross-Entity Concepts */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Tag className="size-3.5 text-primary" />
+                    <span>Tags & Cross-Entity Concepts</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Shared with Notes & Projects
+                  </span>
+                </label>
+                <TagPicker
+                  selectedTags={tags}
+                  onChange={setTags}
+                  placeholder="Type to search or add tags (e.g. Frontend UI, Security, Backend)..."
+                />
               </div>
 
               {/* Priority Selection */}

@@ -30,6 +30,9 @@ import {
   ArrowLeft,
   Calendar,
   Compass,
+  Bot,
+  Terminal,
+  Code,
 } from "lucide-react";
 
 interface ProfileSettingsDialogProps {
@@ -38,6 +41,15 @@ interface ProfileSettingsDialogProps {
 }
 
 type TabType = "profile" | "preferences" | "security";
+
+const AVATAR_ICONS = [
+  { id: "user", label: "Profile", icon: UserIcon },
+  { id: "terminal", label: "Terminal", icon: Terminal },
+  { id: "code", label: "Code", icon: Code },
+  { id: "sparkles", label: "Sparkles", icon: Sparkles },
+  { id: "bot", label: "Bot", icon: Bot },
+  { id: "shield", label: "Shield", icon: Shield },
+];
 
 const ACCENT_COLORS = [
   { id: "amber", name: "Amber Gold", dot: "bg-amber-400" },
@@ -69,6 +81,8 @@ export function ProfileSettingsDialog({
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkillInput, setNewSkillInput] = useState("");
   const [accentColor, setAccentColor] = useState("amber");
+  const [avatarType, setAvatarType] = useState<"icon" | "initials">("icon");
+  const [avatarIcon, setAvatarIcon] = useState<string>("user");
 
   // Preferences state
   const [compactMode, setCompactMode] = useState(false);
@@ -166,6 +180,8 @@ export function ProfileSettingsDialog({
         user.skills || ["React", "TypeScript", "Tailwind", "Supabase", "Node.js"]
       );
       setAccentColor(user.accentColor || "amber");
+      setAvatarType(user.avatarType || "icon");
+      setAvatarIcon(user.avatarIcon || "user");
       setCompactMode(user.settings?.compactMode || false);
       setEmailAlerts(user.settings?.emailAlerts ?? true);
       setAiSuggestions(user.settings?.aiSuggestions ?? true);
@@ -218,6 +234,8 @@ export function ProfileSettingsDialog({
         bio: bio.trim(),
         skills,
         accentColor,
+        avatarType,
+        avatarIcon,
         settings: {
           compactMode,
           emailAlerts,
@@ -243,44 +261,115 @@ export function ProfileSettingsDialog({
       {/* TAB 1: Profile Details */}
       {activeTab === "profile" && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          {/* Avatar Accent Theme Section */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 space-y-3">
+          {/* Avatar & Profile Icon Customization Section */}
+          <div className="rounded-2xl border border-border/80 bg-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="block text-xs font-semibold text-foreground">
-                  Avatar Accent Theme
+                  Avatar & Profile Icon
                 </label>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Choose the color theme for your avatar icon across workspace and sidebars.
+                  Customize the appearance of your profile icon and theme across SkillOS workspace headers and sidebars.
                 </p>
               </div>
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Preview:</span>
                 <UserAvatarIcon
                   name={fullName || user.email}
                   email={user.email}
                   size="md"
                   accentColor={accentColor}
+                  avatarType={avatarType}
+                  avatarIcon={avatarIcon}
                 />
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 pt-2">
-              {ACCENT_COLORS.map((c) => (
+            {/* Avatar Display Style: Profile Icon vs Initials */}
+            <div>
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                Avatar Display Style
+              </span>
+              <div className="flex items-center gap-2">
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => setAccentColor(c.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all cursor-pointer ${
-                    accentColor === c.id
+                  onClick={() => setAvatarType("icon")}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                    avatarType === "icon"
                       ? "border-primary bg-primary/10 text-foreground font-semibold shadow-sm ring-1 ring-primary/40"
                       : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/40"
                   }`}
                 >
-                  <span className={`size-3 rounded-full ${c.dot}`} />
-                  <span>{c.name}</span>
+                  <UserIcon className="size-3.5 text-primary" />
+                  <span>Profile Icon</span>
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setAvatarType("initials")}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                    avatarType === "initials"
+                      ? "border-primary bg-primary/10 text-foreground font-semibold shadow-sm ring-1 ring-primary/40"
+                      : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="font-mono font-bold text-xs">DE</span>
+                  <span>Name Initials</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Icon Picker (Visible when avatarType === "icon") */}
+            {avatarType === "icon" && (
+              <div className="pt-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                  Choose Profile Icon
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {AVATAR_ICONS.map((item) => {
+                    const IconCmp = item.icon;
+                    const isSelected = avatarIcon === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setAvatarIcon(item.id)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-primary/10 text-foreground font-semibold shadow-sm ring-1 ring-primary/40"
+                            : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground"
+                        }`}
+                      >
+                        <IconCmp className={`size-3.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Accent Theme Color */}
+            <div className="pt-1">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                Colorway Theme
+              </span>
+              <div className="flex flex-wrap items-center gap-2.5">
+                {ACCENT_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setAccentColor(c.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all cursor-pointer ${
+                      accentColor === c.id
+                        ? "border-primary bg-primary/10 text-foreground font-semibold shadow-sm ring-1 ring-primary/40"
+                        : "border-border/60 bg-muted/20 text-muted-foreground hover:border-border hover:bg-muted/40"
+                    }`}
+                  >
+                    <span className={`size-3 rounded-full ${c.dot}`} />
+                    <span>{c.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -957,12 +1046,23 @@ export function ProfileSettingsDialog({
               {/* User Overview Profile Card */}
               <div className="rounded-2xl border border-border/60 bg-muted/50 p-4 space-y-3 shadow-sm">
                 <div className="flex items-center gap-3.5">
-                  <UserAvatarIcon
-                    name={fullName || user.email}
-                    email={user.email}
-                    size="lg"
-                    accentColor={accentColor}
-                  />
+                  <div
+                    className="relative group/avatar cursor-pointer"
+                    onClick={() => setActiveTab("profile")}
+                    title="Click to customize profile icon & avatar"
+                  >
+                    <UserAvatarIcon
+                      name={fullName || user.email}
+                      email={user.email}
+                      size="lg"
+                      accentColor={accentColor}
+                      avatarType={avatarType}
+                      avatarIcon={avatarIcon}
+                    />
+                    <span className="absolute -bottom-1 -right-1 size-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md border-2 border-card ring-1 ring-border/50 transition-transform group-hover/avatar:scale-110">
+                      <UserIcon className="size-2.5" />
+                    </span>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold text-foreground truncate">
                       {fullName || "User Profile"}
@@ -1191,6 +1291,8 @@ export function ProfileSettingsDialog({
               email={user.email}
               size="lg"
               accentColor={accentColor}
+              avatarType={avatarType}
+              avatarIcon={avatarIcon}
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">

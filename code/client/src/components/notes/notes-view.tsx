@@ -23,8 +23,10 @@ import {
   Loader2,
   X,
   Bot,
+  Settings2,
 } from "lucide-react";
 import { useNotes } from "./note-context";
+import { useTags } from "@/components/tags/tag-context";
 import { KnowledgeNote, NoteTrack } from "./note-types";
 import { NoteModal } from "./note-modal";
 import { sendAIChat } from "@/lib/ai-service";
@@ -95,6 +97,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
     exportAllNotesMarkdown,
     loadStarterTemplates,
   } = useNotes();
+  const { getTagClass, openTagManager } = useTags();
 
   // View state
   const [viewMode, setViewMode] = useState<"studio" | "grid">("studio");
@@ -427,41 +430,51 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
         </div>
 
         {/* TOP TAGS CAROUSEL */}
-        {metrics.topTags.length > 0 && (
-          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">
-              Filter by Tag:
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedTag("all")}
-              className={cn(
-                "rounded-md px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer",
-                selectedTag === "all"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              All Tags
-            </button>
-            {metrics.topTags.map(({ tag, count }) => (
+        <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+            <Tag className="size-3 text-muted-foreground" />
+            <span>Filter by Tag:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedTag("all")}
+            className={cn(
+              "rounded-md px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer",
+              selectedTag === "all"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            All Tags
+          </button>
+          {metrics.topTags.map(({ tag, count }) => {
+            const isSelected = selectedTag === tag;
+            return (
               <button
                 key={tag}
                 type="button"
-                onClick={() => setSelectedTag(selectedTag === tag ? "all" : tag)}
+                onClick={() => setSelectedTag(isSelected ? "all" : tag)}
                 className={cn(
-                  "rounded-md px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1",
-                  selectedTag === tag
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1.5",
+                  getTagClass(tag, isSelected)
                 )}
               >
                 <span>#{tag}</span>
-                <span className="text-[9px] opacity-70">({count})</span>
+                <span className="text-[9px] opacity-75">({count})</span>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+          {/* Manage Tags Trigger Button */}
+          <button
+            type="button"
+            onClick={() => openTagManager()}
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-border/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shrink-0 ml-1 cursor-pointer"
+            title="Create, edit, colorize, and delete tags"
+          >
+            <Settings2 className="size-3" />
+            <span>Manage Tags</span>
+          </button>
+        </div>
       </div>
 
       {/* WORKSPACE BODY */}
@@ -628,7 +641,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                         {note.tags.slice(0, 3).map((t) => (
                           <span
                             key={t}
-                            className="rounded bg-muted/60 px-1 py-0.2 text-[9px] font-mono text-muted-foreground"
+                            className={cn("rounded border px-1.5 py-0.2 text-[9px] font-mono", getTagClass(t))}
                           >
                             #{t}
                           </span>
@@ -754,9 +767,12 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                       {currentSelectedNote.tags.map((t) => (
                         <span
                           key={t}
-                          className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs font-mono text-muted-foreground border border-border/60"
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono border",
+                            getTagClass(t)
+                          )}
                         >
-                          <Tag className="size-2.5 text-primary" />
+                          <Tag className="size-2.5" />
                           <span>#{t}</span>
                         </span>
                       ))}
@@ -919,8 +935,14 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                     {/* Bottom Meta */}
                     <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
                       <div className="flex flex-wrap items-center gap-1">
-                        {note.tags.slice(0, 2).map((t) => (
-                          <span key={t} className="text-[10px] text-muted-foreground">
+                        {note.tags.slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className={cn(
+                              "rounded border px-1.5 py-0.2 text-[9px] font-mono",
+                              getTagClass(t)
+                            )}
+                          >
                             #{t}
                           </span>
                         ))}

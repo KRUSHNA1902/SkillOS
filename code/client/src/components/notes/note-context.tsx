@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useTags } from "@/components/tags/tag-context";
 import { KnowledgeNote, NoteTrack, NoteMetrics } from "./note-types";
 
 export const STORAGE_KEY = "skillos_knowledge_notes_v1";
@@ -210,6 +211,8 @@ interface NotesContextType {
   exportNoteMarkdown: (id: string) => void;
   exportAllNotesMarkdown: () => void;
   loadStarterTemplates: () => void;
+  batchRenameTag: (oldName: string, newName: string) => void;
+  batchRemoveTag: (tagName: string) => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -265,6 +268,45 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       setSelectedNoteId(notes[0]?.id || null);
     }
   }, [notes, selectedNoteId]);
+
+  // Hook into Central Tag System for automatic rename and delete sync
+  const { registerTagRenameListener, registerTagDeleteListener } = useTags();
+
+  const batchRenameTag = useCallback((oldName: string, newName: string) => {
+    setNotes((prev) =>
+      prev.map((n) => ({
+        ...n,
+        tags: n.tags.map((t) =>
+          t.toLowerCase() === oldName.toLowerCase() ? newName : t
+        ),
+      }))
+    );
+  }, []);
+
+  const batchRemoveTag = useCallback((tagName: string) => {
+    setNotes((prev) =>
+      prev.map((n) => ({
+        ...n,
+        tags: n.tags.filter(
+          (t) => t.toLowerCase() !== tagName.toLowerCase()
+        ),
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    const unregisterRename = registerTagRenameListener((oldName, newName) => {
+      batchRenameTag(oldName, newName);
+    });
+    const unregisterDelete = registerTagDeleteListener((tagName) => {
+      batchRemoveTag(tagName);
+    });
+
+    return () => {
+      unregisterRename();
+      unregisterDelete();
+    };
+  }, [registerTagRenameListener, registerTagDeleteListener, batchRenameTag, batchRemoveTag]);
 
   // Real-time Metrics
   const metrics = useMemo<NoteMetrics>(() => {
@@ -438,6 +480,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     exportNoteMarkdown,
     exportAllNotesMarkdown,
     loadStarterTemplates,
+    batchRenameTag,
+    batchRemoveTag,
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;

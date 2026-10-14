@@ -55,6 +55,7 @@ export interface Project {
   linkedTaskIds: string[];
   linkedNoteIds: string[];
   architectureNotes?: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +67,7 @@ export interface ProjectFilterOptions {
   status: "all" | ProjectStatus;
   track: "all" | ProjectTrack;
   priority: "all" | ProjectPriority;
+  tag?: "all" | string;
   sortBy: "updated" | "progress" | "targetDate" | "priority" | "title";
 }
 

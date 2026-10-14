@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import { KnowledgeNote, NoteTrack, CodeLanguage } from "./note-types";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { sendAIChat } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
 
@@ -49,24 +50,6 @@ const CODE_LANGUAGES: { id: CodeLanguage; label: string }[] = [
   { id: "markdown", label: "Markdown" },
 ];
 
-const SUGGESTED_TAGS = [
-  "SQL",
-  "PostgreSQL",
-  "Window Functions",
-  "Python",
-  "Pandas",
-  "NumPy",
-  "Power BI",
-  "DAX",
-  "Finance",
-  "Valuation",
-  "AI",
-  "Gemini",
-  "Architecture",
-  "Security",
-  "Performance",
-];
-
 export function NoteModal({
   isOpen,
   onClose,
@@ -78,7 +61,6 @@ export function NoteModal({
   const [title, setTitle] = useState("");
   const [area, setArea] = useState<NoteTrack>("SQL & Databases");
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
   const [contentMarkdown, setContentMarkdown] = useState("");
   const [codeSnippet, setCodeSnippet] = useState("");
   const [language, setLanguage] = useState<CodeLanguage>("sql");
@@ -133,27 +115,6 @@ export function NoteModal({
         start + before.length + selected.length
       );
     }, 50);
-  };
-
-  // Add tag
-  const handleAddTag = (tagToAdd: string) => {
-    const cleaned = tagToAdd.trim().replace(/^#/, "");
-    if (!cleaned) return;
-    if (!tags.includes(cleaned)) {
-      setTags([...tags, cleaned]);
-    }
-    setTagInput("");
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
-
-  const handleKeyDownTag = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      handleAddTag(tagInput);
-    }
   };
 
   // AI Synthesize / Polish
@@ -332,52 +293,15 @@ export function NoteModal({
                     <span>Tags & Concepts</span>
                   </span>
                   <span className="text-[10px] text-muted-foreground">
-                    Press Enter or comma to add
+                    Cross-entity tagging across Notes, Tasks & Projects
                   </span>
                 </label>
 
-                <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl border border-border/80 bg-background/80 min-h-[42px]">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary border border-primary/20"
-                    >
-                      <span>#{t}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(t)}
-                        className="text-primary hover:text-destructive cursor-pointer"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleKeyDownTag}
-                    placeholder={tags.length === 0 ? "Type tags (e.g. SQL, Analytics)..." : "Add more..."}
-                    className="flex-1 min-w-[120px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 outline-none px-1 py-0.5"
-                  />
-                </div>
-
-                {/* Suggested Quick Tags */}
-                <div className="flex flex-wrap items-center gap-1 pt-1">
-                  <span className="text-[10px] text-muted-foreground mr-1">Suggested:</span>
-                  {SUGGESTED_TAGS.filter((st) => !tags.includes(st))
-                    .slice(0, 6)
-                    .map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => handleAddTag(st)}
-                        className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                      >
-                        +{st}
-                      </button>
-                    ))}
-                </div>
+                <TagPicker
+                  selectedTags={tags}
+                  onChange={setTags}
+                  placeholder="Type to search or add tags (e.g. SQL, Analytics)..."
+                />
               </div>
 
               {/* Markdown Content with Toolbar & Tab Switcher */}

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Project, ProjectTrack, ProjectPriority, ProjectStatus } from "./project-types";
 import { useProjects } from "./project-context";
+import { useTags } from "@/components/tags/tag-context";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -131,6 +132,7 @@ export function ProjectCard({ project, onOpenDetails, onEdit }: ProjectCardProps
     advanceProjectStatus,
     exportProjectMarkdown,
   } = useProjects();
+  const { getTagClass } = useTags();
 
   const theme = TRACK_THEMES[project.track] || TRACK_THEMES["Fullstack & Systems"];
   const statusCfg = STATUS_CONFIG[project.status] || STATUS_CONFIG.in_progress;
@@ -327,23 +329,45 @@ export function ProjectCard({ project, onOpenDetails, onEdit }: ProjectCardProps
           </div>
         )}
 
-        {/* Tech Stack Pills */}
-        <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-          {project.techStack.slice(0, 4).map((tech) => (
-            <span
-              key={tech}
-              className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-mono font-medium text-muted-foreground"
-            >
-              <FileCode className="size-2.5 opacity-60" />
-              {tech}
-            </span>
-          ))}
-          {project.techStack.length > 4 && (
-            <span className="rounded-md border border-border/40 bg-muted/20 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
-              +{project.techStack.length - 4}
-            </span>
-          )}
-        </div>
+        {/* Project Tags & Tech Stack */}
+        {((project.tags && project.tags.length > 0) || project.techStack.length > 0) && (
+          <div className="mt-3.5 space-y-2">
+            {project.tags && project.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                {project.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                      getTagClass(tag)
+                    )}
+                  >
+                    <span>#{tag}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {project.techStack.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {project.techStack.slice(0, 4).map((tech) => (
+                  <span
+                    key={tech}
+                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-mono font-medium text-muted-foreground"
+                  >
+                    <FileCode className="size-2.5 opacity-60" />
+                    {tech}
+                  </span>
+                ))}
+                {project.techStack.length > 4 && (
+                  <span className="rounded-md border border-border/40 bg-muted/20 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+                    +{project.techStack.length - 4}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Card Footer: Metadata & Quick Launch Buttons */}

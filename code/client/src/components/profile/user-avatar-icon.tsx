@@ -1,16 +1,26 @@
 import { useMemo } from "react";
-import { UserRound } from "lucide-react";
+import { UserRound, Bot, Sparkles, Terminal, Code, Shield } from "lucide-react";
 
-interface UserAvatarIconProps {
+export type AvatarIconName =
+  | "user"
+  | "bot"
+  | "sparkles"
+  | "terminal"
+  | "code"
+  | "shield";
+
+export interface UserAvatarIconProps {
   name?: string;
   email?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   accentColor?: string;
   className?: string;
+  avatarType?: "icon" | "initials";
+  avatarIcon?: AvatarIconName | string;
   showIconFallback?: boolean;
 }
 
-const colorThemes: Record<
+export const colorThemes: Record<
   string,
   {
     bg: string;
@@ -57,7 +67,11 @@ const colorThemes: Record<
   },
 };
 
-const sizeClasses = {
+export const sizeClasses = {
+  xs: {
+    container: "size-6 rounded-md text-[10px]",
+    icon: "size-3",
+  },
   sm: {
     container: "size-7 rounded-lg text-xs",
     icon: "size-3.5",
@@ -76,13 +90,36 @@ const sizeClasses = {
   },
 };
 
+export function renderAvatarIcon(
+  iconName: string = "user",
+  className: string = "size-4"
+) {
+  switch (iconName) {
+    case "bot":
+      return <Bot className={className} />;
+    case "sparkles":
+      return <Sparkles className={className} />;
+    case "terminal":
+      return <Terminal className={className} />;
+    case "code":
+      return <Code className={className} />;
+    case "shield":
+      return <Shield className={className} />;
+    case "user":
+    default:
+      return <UserRound className={className} />;
+  }
+}
+
 export function UserAvatarIcon({
   name = "Developer",
   email,
   size = "md",
   accentColor = "amber",
   className = "",
-  showIconFallback = false,
+  avatarType = "icon",
+  avatarIcon = "user",
+  showIconFallback,
 }: UserAvatarIconProps) {
   const initials = useMemo(() => {
     if (!name && email) {
@@ -98,13 +135,19 @@ export function UserAvatarIcon({
   const theme = colorThemes[accentColor] || colorThemes.amber;
   const currentSize = sizeClasses[size] || sizeClasses.md;
 
+  // If avatarType is explicitly 'initials', show initials.
+  // Otherwise default to the profile icon.
+  const isIcon =
+    avatarType === "icon" ||
+    (avatarType !== "initials" && (showIconFallback !== false));
+
   return (
     <div
       aria-hidden="true"
       className={`relative grid shrink-0 place-items-center select-none font-semibold tracking-wider bg-gradient-to-br ${theme.bg} border ${theme.border} ${theme.text} ${theme.glow} transition-all duration-200 ${currentSize.container} ${className}`}
     >
-      {showIconFallback ? (
-        <UserRound className={currentSize.icon} />
+      {isIcon ? (
+        renderAvatarIcon(avatarIcon, currentSize.icon)
       ) : (
         <span className="font-mono font-bold leading-none">{initials}</span>
       )}

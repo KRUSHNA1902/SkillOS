@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import aiRoutes from './routes/ai.js';
 import tasksRoutes from './routes/tasks.js';
+import tagsRoutes from './routes/tags.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,6 +57,9 @@ app.use('/api/ai', aiRoutes);
 
 // Task routes
 app.use('/api/tasks', tasksRoutes);
+
+// Tag routes
+app.use('/api/tags', tagsRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req, res) => {

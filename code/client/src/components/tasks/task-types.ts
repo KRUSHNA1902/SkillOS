@@ -20,6 +20,7 @@ export interface WorkflowTask {
   reminderAlert?: boolean;
   projectId?: string;
   projectName?: string;
+  tags?: string[];
   createdAt: string;
   completedAt?: string;
 }
@@ -42,6 +43,7 @@ export interface TaskFilterOptions {
   priority: "all" | TaskPriority;
   timelineStage: "all" | TaskTimelineStage;
   projectId?: "all" | string;
+  tag?: "all" | string;
   search: string;
   sortBy: "deadline" | "priority" | "created" | "title";
 }

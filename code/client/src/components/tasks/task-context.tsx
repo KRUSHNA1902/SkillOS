@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useTags } from "@/components/tags/tag-context";
 import {
   WorkflowTask,
   TaskPriority,
@@ -22,6 +23,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Today, 5:00 PM",
     deadline: "2026-10-13T17:00",
     timelineStage: "in_progress",
+    tags: ["Frontend UI", "Architecture"],
     notes:
       "Spring damping should be critically tuned (mass 0.75, damping 35) to avoid overshooting zero-width rails on desktop resize.",
     reminderAlert: true,
@@ -36,6 +38,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Today, 7:30 PM",
     deadline: "2026-10-13T19:30",
     timelineStage: "in_progress",
+    tags: ["Auth Pipeline", "Backend", "Security"],
     notes:
       "Ensure JWT validation runs before protected routes. Dev bypass mode must only activate when VITE_DEV_BYPASS is explicitly true.",
     reminderAlert: true,
@@ -50,6 +53,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Overdue (Yesterday)",
     deadline: "2026-10-12T18:00",
     timelineStage: "planning",
+    tags: ["Security", "Backend"],
     notes:
       "Check express-rate-limit IP resolution behind reverse proxy headers (x-forwarded-for). Verify brute force guard on auth endpoints.",
     reminderAlert: true,
@@ -64,6 +68,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Tomorrow, 2:00 PM",
     deadline: "2026-10-14T14:00",
     timelineStage: "in_progress",
+    tags: ["Performance", "Frontend UI"],
     notes:
       "Audit touch gesture listener passive flags. Avoid layout thrashing when triggering backdrop blur filters.",
     reminderAlert: false,
@@ -78,6 +83,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Completed",
     deadline: "2026-10-12T12:00",
     timelineStage: "completed",
+    tags: ["Workflow Engine", "Architecture"],
     notes:
       "Completed multi-operation task manager with timeline view, deadline alerts, priority badges, and note reader.",
     reminderAlert: false,
@@ -93,6 +99,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Completed",
     deadline: "2026-10-11T16:00",
     timelineStage: "completed",
+    tags: ["Frontend UI", "Architecture"],
     notes:
       "Configured hsl(var(--card)) and hsl(var(--muted)) theme variables for native dark/light switching.",
     reminderAlert: false,
@@ -108,6 +115,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "In 3 days",
     deadline: "2026-10-16T18:00",
     timelineStage: "planning",
+    tags: ["Backend", "PostgreSQL", "SQL"],
     notes:
       "Prepare idempotent SQL migration runner with schema verification checks and rollback snapshots.",
     reminderAlert: false,
@@ -122,6 +130,7 @@ const initialTasksSeed: WorkflowTask[] = [
     dueDate: "Friday",
     deadline: "2026-10-17T17:00",
     timelineStage: "backlog",
+    tags: ["AI", "Analytics"],
     notes:
       "Benchmark AST accuracy across TypeScript generics, async runtime hooks, and memory leak patterns.",
     reminderAlert: false,
@@ -186,6 +195,8 @@ interface TaskManagerContextType {
   dismissAlert: (alertId: string) => void;
   resetDefaultTasks: () => void;
   loadStarterTemplates: () => void;
+  batchRenameTag: (oldName: string, newName: string) => void;
+  batchRemoveTag: (tagName: string) => void;
 }
 
 const TaskManagerContext = createContext<TaskManagerContextType | null>(null);
@@ -316,6 +327,44 @@ export function TaskManagerProvider({
     };
   }, [user?.id, isDevUser, syncWithCloud]);
 
+  // Hook into Central Tag System for automatic rename and delete sync
+  const { registerTagRenameListener, registerTagDeleteListener } = useTags();
+
+  const batchRenameTag = useCallback((oldName: string, newName: string) => {
+    setTasks((prev) =>
+      prev.map((t) => ({
+        ...t,
+        tags: t.tags?.map((tag) =>
+          tag.toLowerCase() === oldName.toLowerCase() ? newName : tag
+        ),
+      }))
+    );
+  }, []);
+
+  const batchRemoveTag = useCallback((tagName: string) => {
+    setTasks((prev) =>
+      prev.map((t) => ({
+        ...t,
+        tags: t.tags?.filter(
+          (tag) => tag.toLowerCase() !== tagName.toLowerCase()
+        ),
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    const unregisterRename = registerTagRenameListener((oldName, newName) => {
+      batchRenameTag(oldName, newName);
+    });
+    const unregisterDelete = registerTagDeleteListener((tagName) => {
+      batchRemoveTag(tagName);
+    });
+    return () => {
+      unregisterRename();
+      unregisterDelete();
+    };
+  }, [registerTagRenameListener, registerTagDeleteListener, batchRenameTag, batchRemoveTag]);
+
   // Compute real-time deadline alerts
   const activeAlerts = useMemo<DeadlineAlert[]>(() => {
     const alerts: DeadlineAlert[] = [];
@@ -416,6 +465,10 @@ export function TaskManagerProvider({
     const newTask: WorkflowTask = {
       ...taskData,
       id: taskData.id || `task-${Date.now()}`,
+      tags:
+        taskData.tags && taskData.tags.length > 0
+          ? taskData.tags
+          : [taskData.category || "General"],
       createdAt: new Date().toISOString(),
       status: taskData.status || "in_progress",
       timelineStage: taskData.timelineStage || "in_progress",
@@ -598,6 +651,8 @@ export function TaskManagerProvider({
         dismissAlert,
         resetDefaultTasks,
         loadStarterTemplates: resetDefaultTasks,
+        batchRenameTag,
+        batchRemoveTag,
       }}
     >
       {children}
