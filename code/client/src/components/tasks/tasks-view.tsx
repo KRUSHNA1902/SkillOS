@@ -24,6 +24,7 @@ import {
   Database,
   HardDrive,
   RefreshCw,
+  FolderKanban,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -744,6 +745,14 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
                               <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                                 {task.category}
                               </span>
+
+                              {/* Associated Project */}
+                              {task.projectName && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] text-primary font-medium">
+                                  <FolderKanban className="size-2.5" />
+                                  <span className="truncate max-w-[130px]">{task.projectName}</span>
+                                </span>
+                              )}
 
                               {/* Stage */}
                               <span className="rounded-md bg-muted/70 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">

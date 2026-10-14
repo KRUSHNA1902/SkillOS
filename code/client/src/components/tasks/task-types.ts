@@ -18,6 +18,8 @@ export interface WorkflowTask {
   timelineStage: TaskTimelineStage;
   notes?: string;
   reminderAlert?: boolean;
+  projectId?: string;
+  projectName?: string;
   createdAt: string;
   completedAt?: string;
 }
@@ -39,6 +41,7 @@ export interface TaskFilterOptions {
   status: "all" | TaskStatus | "overdue";
   priority: "all" | TaskPriority;
   timelineStage: "all" | TaskTimelineStage;
+  projectId?: "all" | string;
   search: string;
   sortBy: "deadline" | "priority" | "created" | "title";
 }

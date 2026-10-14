@@ -27,6 +27,8 @@ import { TasksView } from "@/components/tasks/tasks-view";
 import { TaskManagerProvider } from "@/components/tasks/task-context";
 import { NotesView } from "@/components/notes/notes-view";
 import { NotesProvider } from "@/components/notes/note-context";
+import { ProjectsView } from "@/components/projects/projects-view";
+import { ProjectsProvider } from "@/components/projects/project-context";
 import { InboxView } from "@/components/inbox/inbox-view";
 import { InboxProvider, useInbox } from "@/components/inbox/inbox-context";
 import { AIAssistantView } from "@/components/ai/ai-assistant-view";
@@ -277,11 +279,12 @@ function App() {
     displayName.charAt(0).toUpperCase() + displayName.slice(1);
 
   return (
-    <TaskManagerProvider key={`tasks-${user.id}`}>
-      <NotesProvider key={`notes-${user.id}`}>
-        <InboxProvider key={`inbox-${user.id}`}>
-          <OnboardingProvider key={`onboarding-${user.id}`}>
-          <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
+    <ProjectsProvider key={`projects-${user.id}`}>
+      <TaskManagerProvider key={`tasks-${user.id}`}>
+        <NotesProvider key={`notes-${user.id}`}>
+          <InboxProvider key={`inbox-${user.id}`}>
+            <OnboardingProvider key={`onboarding-${user.id}`}>
+            <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
         <AnimatedSidebarProvider className="h-full w-full overflow-hidden">
         {/* Animated Desktop & Mobile Sidebar */}
         <AnimatedSidebar
@@ -373,6 +376,9 @@ function App() {
                           if (!children) {
                             setActive(label);
                           } else {
+                            if (label === "Projects") {
+                              setActive("Projects");
+                            }
                             setOpenSection((current) =>
                               current === label ? null : label
                             );
@@ -508,6 +514,7 @@ function App() {
                 onOpenAI={() => setActive("AI Assistant")}
                 onOpenTasks={() => setActive("Tasks")}
                 onOpenNotes={() => setActive("Notes")}
+                onOpenProjects={() => setActive("Projects")}
               />
             ) : active === "Inbox" ? (
               <InboxView
@@ -528,6 +535,27 @@ function App() {
               <TasksView onNavigateToAI={() => setActive("AI Assistant")} />
             ) : active === "Notes" ? (
               <NotesView onNavigateToAI={() => setActive("AI Assistant")} />
+            ) : active === "Projects" || active === "All Projects" ? (
+              <ProjectsView
+                initialFilter="all"
+                onNavigateToAI={() => setActive("AI Assistant")}
+                onNavigateToTasks={() => setActive("Tasks")}
+                onNavigateToNotes={() => setActive("Notes")}
+              />
+            ) : active === "In Progress" ? (
+              <ProjectsView
+                initialFilter="in_progress"
+                onNavigateToAI={() => setActive("AI Assistant")}
+                onNavigateToTasks={() => setActive("Tasks")}
+                onNavigateToNotes={() => setActive("Notes")}
+              />
+            ) : active === "Completed" ? (
+              <ProjectsView
+                initialFilter="completed"
+                onNavigateToAI={() => setActive("AI Assistant")}
+                onNavigateToTasks={() => setActive("Tasks")}
+                onNavigateToNotes={() => setActive("Notes")}
+              />
             ) : active === "AI Assistant" ? (
               <AIAssistantView userName={capitalizedName} />
             ) : (
@@ -573,6 +601,7 @@ function App() {
         </InboxProvider>
       </NotesProvider>
   </TaskManagerProvider>
+    </ProjectsProvider>
   );
 }
 

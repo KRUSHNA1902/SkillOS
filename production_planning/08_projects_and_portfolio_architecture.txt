@@ -1,0 +1,85 @@
+================================================================================
+SKILLOS — PERSONAL LEARNING & PROGRESS MANAGEMENT PLATFORM
+PROJECT PLANNING & EVOLUTION LOG [DOCUMENT: 08]
+File: 08_projects_and_portfolio_architecture.txt
+Created: 2026-10-14
+Status: Projects & Portfolio Architecture, Multi-View Sprint Engine & AI Synthesis (CURRENT)
+================================================================================
+
+================================================================================
+VERSION TRACKING & CHANGELOG
+================================================================================
+[x] 01 — Baseline Planning, 3-Part Layout & Core Modules Specification
+[x] 02 — Deep Technical Architecture & Stack Mapping
+[x] 03 — Draggable Widget Grid Integration
+[x] 04 — Gemini AI Engine, Data Project Curriculum & Overall System Synthesis
+[x] 05 — Data Saving, Storage, and Viewing Architecture & Implementation
+[x] 06 — Task Operations, Chronological Delivery Timeline & Deadline Alert Engine
+[x] 07 — Notes & Knowledge Architecture, Studio/Gallery Views & AI Synthesis
+[x] 08 — Projects & Portfolio Architecture, Multi-View Sprint Engine & AI Synthesis (CURRENT)
+
+--------------------------------------------------------------------------------
+--- NEW & EXCLUSIVE IN THIS VERSION (08) ---
+--------------------------------------------------------------------------------
+1. Centralized Projects & Portfolio Engine (ProjectsProvider & useProjects):
+   - Aligned with PostgreSQL relational schema: `skillos_projects`, `skillos_project_milestones`, and `skillos_project_deliverables`.
+   - Local-first persistence via browser storage (`skillos_projects_v1`) with instant 0ms optimistic UI updates.
+   - Comprehensive starter portfolio projects spanning all 6 curriculum tracks:
+     * Automated Stock Market Data Pipeline & Lakehouse (Python, DuckDB, Pandas, FastAPI, Streamlit, Parquet)
+     * SkillOS Autonomous Agent & Copilot Engine (Gemini 3.8 Flash, Node.js, WebSockets, TypeScript, React)
+     * Enterprise OLAP Warehouse & Analytical Queries (PostgreSQL, dbt, SQL, Docker, Metabase, Supabase)
+     * Executive SaaS 3-Statement Financial Valuation & DCF Model (Power BI, DAX, Excel, Python)
+     * Cloud Infrastructure Security Auditor & CI/CD Gatekeeper (Terraform, Docker, GitHub Actions, AWS)
+     * Enterprise Semantic Model & Executive KPI Dashboard (Power BI, DAX, SQL Server, Tabular Editor)
+   - Real-time calculated metrics: total projects, active sprint count, completed portfolio count, total logged hours vs estimated hours, average progress percentage, and distribution across learning tracks.
+
+2. Four Distinct Viewing Perspectives in Projects Workspace (ProjectsView):
+   - Showcase Grid View (Portfolio Focus):
+     * High-density chromatic cards with domain glowing borders (blue, emerald, amber, purple, rose, cyan).
+     * Visual completion progress bar, active milestone callout with status pulse, and tech stack tags.
+     * Direct launch links for GitHub Repository and Live Production Demo.
+     * Quick action menu: Deep Dive Inspector, Advance Status, Edit, Duplicate, Export Markdown, and Delete.
+   - Kanban Sprint Board View (Workflow Focus):
+     * 4 Delivery columns: Planning & Architecture, In Active Sprint, Testing & Review, Completed Portfolio.
+     * Column summary stats (project count, total logged hours in stage).
+     * 1-click stage advancement (Move back, Move forward) and quick "+ Add Project to Stage" trigger.
+   - Chronological Roadmap Timeline View (Gantt Milestones):
+     * Visual timeline mapped by project target dates with countdown badges ("12 days left", "Due Today", "Overdue", "Completed").
+     * Horizontal milestone progression bar with interactive checkable checkpoints.
+     * Expandable accordion drawer showing individual phase acceptance criteria.
+   - High-Density List / Table View:
+     * Compact tabular view for rapid executive scanning with columns for Title, Track, Status, Progress %, Phases, Hours, and Delivery Dates.
+
+3. Deep-Dive Project Inspector Sheet (ProjectDetailsInspector):
+   - Comprehensive slide-over sheet providing single-project focus without losing context:
+     * Header ribbon with track badge, status advance button, pin toggle, and export.
+     * Progress & Hours overview cards (Completion %, Phases Done, Time Invested, Target Date).
+     * Direct links bar (GitHub repo, live demo, documentation).
+     * Interactive Milestones & Deliverables checklist: checking off deliverables instantly recalculates project completion percentage.
+     * Connected Workflow Tasks: displays live tasks from `useTaskManager()` tagged with this project; includes inline "+ Add Task" form with priority and due date.
+     * Connected Knowledge Notes: displays markdown notes and syntax code snippets from `useNotes()` sharing this project's curriculum track.
+     * System Architecture Spec: full Markdown reader for technical architecture and design trade-offs.
+     * Gemini 3.8 Flash Architecture Review: 1-click review action analyzing architectural bottlenecks, production readiness, and 60-second interview pitches.
+
+4. Rich Project Editor & AI Milestone Generator (ProjectModal):
+   - 4-tab interactive creation and editing modal dialog:
+     * Tab 1 (General Details): Title, Tagline, Track selector, Priority level, Status, Start/Target Dates, and Estimated/Logged Hours.
+     * Tab 2 (Tech Stack & Links): Interactive tag chip manager with 19 suggested tech stack tags, GitHub URL, Demo URL, and Documentation URL.
+     * Tab 3 (Milestones & AI Architect): Phase builder with deliverables checklist, plus **"Generate with Gemini"** powered by Gemini 3.8 Flash to auto-scaffold 4 sequential phases with acceptance criteria!
+     * Tab 4 (Architecture Spec): Split-tab Markdown editor with live preview.
+
+5. Cross-Workspace Integrations:
+   - DashboardView Integration:
+     * Embedded "Portfolio Projects" widget displaying live active sprint builds, completion progress bars, track tags, and hours logged.
+     * "Showcase" link navigating directly to ProjectsView.
+     * Clicking any project card in Dashboard opens it directly in the Projects inspector.
+   - TaskManager Integration:
+     * `WorkflowTask` model extended with `projectId?: string` and `projectName?: string`.
+     * `TaskModal` features an interactive "Associated Project" dropdown to link tasks from anywhere in the app.
+     * Task cards in `TasksView` display the project badge (`<FolderKanban />`) with project title.
+   - Sidebar Navigation Integration:
+     * Clicking parent "Projects" navigates to Projects and opens the submenu.
+     * Clicking sub-items "All Projects", "In Progress", or "Completed" navigates to Projects and pre-selects the corresponding filter tab!
+================================================================================
+END OF DOCUMENT 08
+================================================================================

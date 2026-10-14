@@ -28,10 +28,11 @@ import {
 } from "@/components/tasks/task-types";
 import { useTaskManager, calculateTimeRemaining } from "@/components/tasks/task-context";
 import { useNotes } from "@/components/notes/note-context";
+import { useProjects } from "@/components/projects/project-context";
 import { useOnboarding } from "@/context/OnboardingContext";
 import { OnboardingResumeBanner } from "@/components/onboarding/onboarding-resume-banner";
 import { OnboardingChecklistCard } from "@/components/onboarding/onboarding-checklist-card";
-import { Compass } from "lucide-react";
+import { Compass, FolderKanban } from "lucide-react";
 
 export type { TaskStatus, TaskPriority, WorkflowTask };
 
@@ -88,6 +89,7 @@ export interface DashboardViewProps {
   onOpenAI?: () => void;
   onOpenTasks?: () => void;
   onOpenNotes?: () => void;
+  onOpenProjects?: () => void;
 }
 
 export function DashboardView({
@@ -97,6 +99,7 @@ export function DashboardView({
   onOpenAI,
   onOpenTasks,
   onOpenNotes,
+  onOpenProjects,
 }: DashboardViewProps) {
   const {
     tasks,
@@ -112,6 +115,12 @@ export function DashboardView({
     addNote,
     setSelectedNoteId,
   } = useNotes();
+
+  const {
+    projects,
+    metrics: projectMetrics,
+    setSelectedProjectId,
+  } = useProjects();
 
   const { state: onboardingState, startTour } = useOnboarding();
 
@@ -811,8 +820,68 @@ export function DashboardView({
           </Card>
         </div>
 
-        {/* Right Column (3 cols): Latest Updates & Workflow Breakdown */}
+        {/* Right Column (3 cols): Projects, Latest Updates & Workflow Breakdown */}
         <div className="space-y-6 lg:col-span-3">
+          {/* SECTION 2.5: Active Portfolio Projects */}
+          <Card className="border-border bg-card/60 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>Portfolio Projects</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {projectMetrics.inProgress} active sprints • {projectMetrics.completed} portfolio ready
+                </CardDescription>
+              </div>
+              {onOpenProjects && (
+                <button
+                  type="button"
+                  onClick={onOpenProjects}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+                >
+                  <span>Showcase</span>
+                  <ChevronRight className="size-3" />
+                </button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-3 pt-1">
+              <div className="space-y-2.5">
+                {projects.slice(0, 3).map((proj) => {
+                  return (
+                    <div
+                      key={proj.id}
+                      onClick={() => {
+                        setSelectedProjectId(proj.id);
+                        if (onOpenProjects) onOpenProjects();
+                      }}
+                      className="group/item flex flex-col gap-1.5 rounded-xl border border-border/60 bg-background/50 p-3 hover:border-border hover:bg-background/80 transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground group-hover/item:text-primary transition-colors truncate">
+                          {proj.title}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-foreground shrink-0">
+                          {proj.progress}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-muted/80 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-300"
+                          style={{ width: `${proj.progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                        <span className="truncate max-w-[140px]">{proj.track}</span>
+                        <span>{proj.loggedHours}h / {proj.estimatedHours}h</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* SECTION 3: Latest Updates */}
           <Card className="border-border bg-card/60 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-3">

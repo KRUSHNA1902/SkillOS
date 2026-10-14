@@ -11,6 +11,7 @@ import {
   Milestone,
   ChevronDown,
   Check,
+  FolderKanban,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ import {
   TaskTimelineStage,
   TaskStatus,
 } from "./task-types";
+import { useProjects } from "@/components/projects/project-context";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -61,6 +63,7 @@ export function TaskModal({
   initialTask,
 }: TaskModalProps) {
   const isEditing = Boolean(initialTask);
+  const { projects } = useProjects();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Frontend UI");
@@ -70,6 +73,7 @@ export function TaskModal({
   const [notes, setNotes] = useState("");
   const [reminderAlert, setReminderAlert] = useState(true);
   const [status, setStatus] = useState<TaskStatus>("in_progress");
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (initialTask) {
@@ -81,6 +85,7 @@ export function TaskModal({
       setNotes(initialTask.notes || "");
       setReminderAlert(initialTask.reminderAlert ?? true);
       setStatus(initialTask.status);
+      setProjectId(initialTask.projectId);
     } else {
       setTitle("");
       setCategory("Frontend UI");
@@ -90,6 +95,7 @@ export function TaskModal({
       setNotes("");
       setReminderAlert(true);
       setStatus("in_progress");
+      setProjectId(undefined);
     }
   }, [initialTask, isOpen]);
 
@@ -138,6 +144,8 @@ export function TaskModal({
       dueDate = "Scheduled";
     }
 
+    const selectedProject = projects.find((p) => p.id === projectId);
+
     onSave({
       id: initialTask?.id,
       title: title.trim(),
@@ -149,6 +157,8 @@ export function TaskModal({
       timelineStage,
       notes: notes.trim(),
       reminderAlert,
+      projectId,
+      projectName: selectedProject?.title,
     });
 
     onClose();
@@ -339,6 +349,75 @@ export function TaskModal({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
+              </div>
+
+              {/* Connected Project (Optional) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <FolderKanban className="size-3.5 text-primary" />
+                    <span>Associated Project (Optional)</span>
+                  </span>
+                  {projectId && (
+                    <button
+                      type="button"
+                      onClick={() => setProjectId(undefined)}
+                      className="text-[10px] text-muted-foreground hover:text-destructive cursor-pointer"
+                    >
+                      Clear link
+                    </button>
+                  )}
+                </label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-xs text-foreground hover:border-border transition-colors focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2 truncate">
+                        <FolderKanban className="size-3.5 text-primary shrink-0" />
+                        <span className="truncate">
+                          {projects.find((p) => p.id === projectId)?.title || "Standalone Task (No Project)"}
+                        </span>
+                      </span>
+                      <ChevronDown className="size-3.5 text-muted-foreground shrink-0 ml-2" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-[calc(100vw-2rem)] max-w-sm sm:w-80 border border-border/80 bg-popover p-1.5 shadow-2xl"
+                  >
+                    <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">
+                      Link Task to Portfolio Project
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="my-1 bg-border/60" />
+                    <DropdownMenuItem
+                      onClick={() => setProjectId(undefined)}
+                      className={`flex items-center justify-between px-2.5 py-2 text-xs rounded-lg cursor-pointer ${
+                        !projectId ? "bg-primary/15 text-primary font-medium" : "text-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      <span>Standalone Task (No Project)</span>
+                      {!projectId && <Check className="size-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                    <div className="max-h-56 overflow-y-auto space-y-0.5 pt-1">
+                      {projects.map((proj) => (
+                        <DropdownMenuItem
+                          key={proj.id}
+                          onClick={() => setProjectId(proj.id)}
+                          className={`flex items-center justify-between px-2.5 py-2 text-xs rounded-lg cursor-pointer ${
+                            projectId === proj.id
+                              ? "bg-primary/15 text-primary font-medium"
+                              : "text-foreground hover:bg-muted/70"
+                          }`}
+                        >
+                          <span className="truncate pr-2">{proj.title}</span>
+                          {projectId === proj.id && <Check className="size-3.5 text-primary shrink-0" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Priority Selection */}
