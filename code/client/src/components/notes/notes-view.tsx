@@ -29,7 +29,7 @@ import { useNotes } from "./note-context";
 import { useTags } from "@/components/tags/tag-context";
 import { KnowledgeNote, NoteTrack } from "./note-types";
 import { NoteModal } from "./note-modal";
-import { sendAIChat } from "@/lib/ai-service";
+import { sendAIChat, FAST_PRIMARY_MODEL } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
 
 interface NotesViewProps {
@@ -219,7 +219,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
         [],
         { activeTab: "notes", focusArea: aiTrackInput },
         "notes",
-        "gemini-3.8-flash"
+        FAST_PRIMARY_MODEL
       );
 
       if (res.reply) {

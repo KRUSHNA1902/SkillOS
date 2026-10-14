@@ -15,8 +15,10 @@ import {
   Code2,
   BarChart3,
   TrendingUp,
+  Zap,
+  Brain,
 } from "lucide-react";
-import { AIMode } from "@/lib/ai-service";
+import { AIMode, FAST_PRIMARY_MODEL, DEEP_REASONING_MODEL } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
 
 interface ChatComposerProps {
@@ -27,6 +29,8 @@ interface ChatComposerProps {
   onClear?: () => void;
   isGenerating: boolean;
   modelName?: string;
+  selectedModel?: string;
+  onModelChange?: (model: string) => void;
   hasMessages?: boolean;
   mode?: AIMode;
   onModeChange?: (mode: AIMode) => void;
@@ -84,13 +88,16 @@ export function ChatComposer({
   onStop,
   onClear,
   isGenerating,
-  modelName = "gemini-3.8-flash",
+  modelName = FAST_PRIMARY_MODEL,
+  selectedModel = FAST_PRIMARY_MODEL,
+  onModelChange,
   hasMessages = false,
   mode = "learning",
   onModeChange,
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
 
@@ -298,6 +305,99 @@ export function ChatComposer({
                         </button>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3.5 Model Speed Toggle */}
+            {onModelChange && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModelMenuOpen((prev) => !prev);
+                    setModeMenuOpen(false);
+                    setToolsMenuOpen(false);
+                    setAttachmentMenuOpen(false);
+                  }}
+                  title="Switch Model Reasoning Speed"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-muted/70 hover:bg-muted border border-border/70 px-3 py-1.5 text-xs font-medium text-foreground transition-all cursor-pointer active:scale-95"
+                >
+                  {selectedModel === DEEP_REASONING_MODEL ? (
+                    <>
+                      <Brain className="size-3 text-purple-400" />
+                      <span className="hidden sm:inline">Deep</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="size-3 text-amber-400" />
+                      <span className="hidden sm:inline">Turbo</span>
+                    </>
+                  )}
+                  <ChevronDown className="size-3 text-muted-foreground opacity-70" />
+                </button>
+
+                {modelMenuOpen && (
+                  <div className="absolute bottom-10 left-0 z-50 w-64 rounded-xl border border-border/80 bg-popover p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95">
+                    <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Model Reasoning & Speed
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onModelChange(FAST_PRIMARY_MODEL);
+                        setModelMenuOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer",
+                        selectedModel !== DEEP_REASONING_MODEL
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Zap className="size-3.5 text-amber-400" />
+                        <div>
+                          <div className="leading-none flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground">⚡ Turbo Mode</span>
+                            <span className="text-[10px] text-emerald-400 font-mono">~0.8s</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            Instant answers & fast roadmaps
+                          </div>
+                        </div>
+                      </div>
+                      {selectedModel !== DEEP_REASONING_MODEL && <Check className="size-3.5 text-primary" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onModelChange(DEEP_REASONING_MODEL);
+                        setModelMenuOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer",
+                        selectedModel === DEEP_REASONING_MODEL
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Brain className="size-3.5 text-purple-400" />
+                        <div>
+                          <div className="leading-none flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground">🧠 Deep Reasoning</span>
+                            <span className="text-[10px] text-purple-400 font-mono">3.8 Flash</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            Extended multi-turn thinking tokens
+                          </div>
+                        </div>
+                      </div>
+                      {selectedModel === DEEP_REASONING_MODEL && <Check className="size-3.5 text-primary" />}
+                    </button>
                   </div>
                 )}
               </div>

@@ -3,10 +3,10 @@ import express from 'express';
 const router = express.Router();
 
 const GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
   'gemini-3.8-flash',
   'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-2.5-flash',
 ];
 
 const MODE_PROMPTS = {
@@ -52,6 +52,8 @@ Format every note with:
 5. **🧠 Spaced Repetition Recall Questions**: 3-4 key questions to test memory later.
 Format with clean GitHub-flavored markdown, callouts, and code blocks.`
 };
+
+const SKILLOS_SYSTEM_PROMPT = MODE_PROMPTS.learning;
 
 /**
  * Call Gemini API with automatic fallback across models
@@ -194,6 +196,156 @@ router.post('/chat', async (req, res) => {
       error: error.message || 'Internal AI processing error',
       modelFallbackAttempted: true
     });
+  }
+});
+
+/**
+ * POST /api/ai/chat-stream
+ * Server-Sent Events (SSE) streaming chat endpoint for sub-second TTFT
+ */
+router.post('/chat-stream', async (req, res) => {
+  try {
+    const { message, history = [], context = {}, mode = 'learning', model: requestedModel } = req.body;
+
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Valid message string is required' });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server' });
+    }
+
+    // Configure Server-Sent Events response headers
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering if deployed behind reverse proxy
+    if (res.flushHeaders) {
+      res.flushHeaders();
+    }
+
+    const abortController = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        abortController.abort();
+      }
+    });
+
+    const contents = [];
+    if (Array.isArray(history)) {
+      for (const turn of history.slice(-6)) {
+        if (turn.role && turn.text) {
+          contents.push({
+            role: turn.role === 'user' ? 'user' : 'model',
+            parts: [{ text: turn.text }]
+          });
+        }
+      }
+    }
+
+    let userPrompt = message;
+    if (context && Object.keys(context).length > 0) {
+      userPrompt = `[Context: Active mode: ${mode}, Focus: ${context.focusArea || 'Data Engineering & Analytics'}]\n\n${message}`;
+    }
+    contents.push({
+      role: 'user',
+      parts: [{ text: userPrompt }]
+    });
+
+    const systemPrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.learning;
+    const modelOrder = requestedModel
+      ? [requestedModel, ...GEMINI_MODELS.filter(m => m !== requestedModel)]
+      : GEMINI_MODELS;
+
+    let streamSuccess = false;
+
+    for (const model of modelOrder) {
+      if (abortController.signal.aborted) break;
+
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+        const payload = {
+          contents,
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048,
+          }
+        };
+
+        const upstreamRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: abortController.signal
+        });
+
+        if (!upstreamRes.ok) {
+          const errorData = await upstreamRes.json().catch(() => ({}));
+          const status = upstreamRes.status;
+          if (status === 503 || status === 404 || status === 429 || (status === 400 && errorData?.error?.message?.toLowerCase()?.includes('model'))) {
+            console.warn(`[AI Stream] Model ${model} returned ${status}, trying next fallback model...`);
+            continue;
+          }
+          throw new Error(errorData?.error?.message || `Gemini API error: ${upstreamRes.statusText}`);
+        }
+
+        const reader = upstreamRes.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  res.write(`data: ${JSON.stringify({ text, model })}\n\n`);
+                }
+              } catch {
+                // ignore partial JSON chunk
+              }
+            }
+          }
+        }
+
+        // Send completion metadata event
+        res.write(`data: ${JSON.stringify({ done: true, model, mode })}\n\n`);
+        res.end();
+        streamSuccess = true;
+        break;
+      } catch (err) {
+        if (abortController.signal.aborted) {
+          break;
+        }
+        console.warn(`[AI Stream Error with model ${model}]:`, err.message);
+      }
+    }
+
+    if (!streamSuccess && !res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: 'Failed to generate AI response with available models' })}\n\n`);
+      res.end();
+    }
+  } catch (error) {
+    console.error('[AI Stream Route Error]:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Internal AI streaming error' });
+    } else if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: error.message || 'Internal streaming error' })}\n\n`);
+      res.end();
+    }
   }
 });
 

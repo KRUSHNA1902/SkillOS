@@ -57,7 +57,15 @@ export interface AIRoadmapResponse {
   source: 'backend' | 'client-direct';
 }
 
-const FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+export const FAST_PRIMARY_MODEL = 'gemini-3.5-flash-lite';
+export const DEEP_REASONING_MODEL = 'gemini-3.8-flash';
+
+const FALLBACK_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash',
+];
 
 export const CLIENT_MODE_PROMPTS: Record<AIMode, string> = {
   learning: `You are the SkillOS Learning Copilot — an expert pedagogical tutor and problem-solving mentor.
@@ -192,7 +200,7 @@ export async function checkAIStatus(): Promise<{ configured: boolean; model?: st
       const data = await res.json();
       return {
         configured: data.configured,
-        model: data.primaryModel || 'gemini-3.8-flash',
+        model: data.primaryModel || FAST_PRIMARY_MODEL,
         message: data.message
       };
     }
@@ -203,7 +211,7 @@ export async function checkAIStatus(): Promise<{ configured: boolean; model?: st
   if (CLIENT_GEMINI_KEY) {
     return {
       configured: true,
-      model: 'gemini-3.8-flash',
+      model: FAST_PRIMARY_MODEL,
       message: 'Direct Gemini API client connection ready'
     };
   }
@@ -214,6 +222,199 @@ export async function checkAIStatus(): Promise<{ configured: boolean; model?: st
   };
 }
 
+export interface AIStreamCallbacks {
+  onChunk: (chunk: string) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * Stream chat message to SkillOS AI with SSE streaming and direct client fallback
+ * Delivers sub-second Time-To-First-Token (TTFT)
+ */
+export async function streamAIChat(
+  message: string,
+  history: AIChatMessage[] = [],
+  context: Record<string, unknown> = {},
+  mode: AIMode = 'learning',
+  model: string = FAST_PRIMARY_MODEL,
+  callbacks: AIStreamCallbacks
+): Promise<AIChatResponse> {
+  const startTime = performance.now();
+  const { onChunk, signal } = callbacks;
+
+  // 1. Try Backend SSE Endpoint
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/ai/chat-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history, context, mode, model }),
+      signal
+    });
+
+    if (res.ok && res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedReply = '';
+      let resolvedModel = model;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.error) {
+                throw new Error(data.error);
+              }
+              if (data.text) {
+                accumulatedReply += data.text;
+                onChunk(data.text);
+              }
+              if (data.model) {
+                resolvedModel = data.model;
+              }
+            } catch {
+              // ignore partial line parsing
+            }
+          }
+        }
+      }
+
+      if (accumulatedReply.trim().length > 0) {
+        const latencyMs = Math.round(performance.now() - startTime);
+        return {
+          reply: accumulatedReply,
+          model: resolvedModel,
+          mode,
+          latencyMs,
+          thought: `Streamed response via ${resolvedModel} (${mode} mode) in ${(latencyMs / 1000).toFixed(1)}s`,
+          source: 'backend',
+          timestamp: new Date().toISOString()
+        };
+      }
+    }
+  } catch (err: unknown) {
+    if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+      throw err;
+    }
+    console.warn('[AI Service] Backend stream unreachable or failed, falling back to direct client stream');
+  }
+
+  // 2. Direct Fallback: Client-side direct SSE stream to Gemini API
+  if (CLIENT_GEMINI_KEY) {
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    for (const msg of history.slice(-6)) {
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+      });
+    }
+
+    let userPrompt = message;
+    if (context && Object.keys(context).length > 0) {
+      userPrompt = `[Context: Active mode: ${mode}, Focus: ${context.focusArea || 'Data Engineering & Analytics'}]\n\n${message}`;
+    }
+    contents.push({
+      role: 'user',
+      parts: [{ text: userPrompt }]
+    });
+
+    const systemInstructionText = CLIENT_MODE_PROMPTS[mode] || CLIENT_MODE_PROMPTS.learning;
+    const modelOrder = model
+      ? [model, ...FALLBACK_MODELS.filter(m => m !== model)]
+      : FALLBACK_MODELS;
+
+    for (const targetModel of modelOrder) {
+      try {
+        if (signal?.aborted) throw new DOMException('Aborted by user', 'AbortError');
+
+        const streamRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:streamGenerateContent?alt=sse&key=${CLIENT_GEMINI_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal,
+            body: JSON.stringify({
+              contents,
+              systemInstruction: {
+                parts: [{ text: systemInstructionText }]
+              },
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2048,
+              }
+            })
+          }
+        );
+
+        if (!streamRes.ok || !streamRes.body) {
+          continue;
+        }
+
+        const reader = streamRes.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let accumulatedReply = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  accumulatedReply += text;
+                  onChunk(text);
+                }
+              } catch {
+                // ignore partial JSON chunk
+              }
+            }
+          }
+        }
+
+        if (accumulatedReply.trim().length > 0) {
+          const latencyMs = Math.round(performance.now() - startTime);
+          return {
+            reply: accumulatedReply,
+            model: targetModel,
+            mode,
+            latencyMs,
+            thought: `Streamed directly from Gemini API via ${targetModel} in ${(latencyMs / 1000).toFixed(1)}s`,
+            source: 'client-direct',
+            timestamp: new Date().toISOString()
+          };
+        }
+      } catch (err) {
+        if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // 3. Last fallback: non-streaming sendAIChat
+  const fallbackRes = await sendAIChat(message, history, context, mode, model, signal);
+  onChunk(fallbackRes.reply);
+  return fallbackRes;
+}
+
 /**
  * Send chat message to SkillOS AI with mode and model support
  */
@@ -222,7 +423,7 @@ export async function sendAIChat(
   history: AIChatMessage[] = [],
   context: Record<string, unknown> = {},
   mode: AIMode = 'learning',
-  model: string = 'gemini-3.8-flash',
+  model: string = FAST_PRIMARY_MODEL,
   signal?: AbortSignal
 ): Promise<AIChatResponse> {
   const startTime = performance.now();
@@ -577,7 +778,7 @@ Provide your response in EXACTLY the following JSON format without Markdown form
       }
     ],
     architectureNotes: `### ${projectTitle} Architecture Spec\n- **Domain**: ${track}\n- **Stack**: ${stackStr}\n- **Design Pattern**: Modular service layers with strict data contracts and reproducible pipelines.\n- **Portfolio Highlight**: Demonstrates production-grade engineering, verifiable automated tests, and real-time observability.`,
-    model: 'gemini-3.8-flash'
+    model: FAST_PRIMARY_MODEL
   };
 }
 

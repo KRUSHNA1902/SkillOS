@@ -24,7 +24,8 @@ import {
   Bookmark,
 } from "lucide-react";
 import {
-  sendAIChat,
+  streamAIChat,
+  FAST_PRIMARY_MODEL,
   summarizeDataProject,
   generateAIRoadmap,
   checkAIStatus,
@@ -144,9 +145,10 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
   const [tab, setTab] = useState<"chat" | "summary" | "roadmap">(initialTab);
   const [status, setStatus] = useState<{ configured: boolean; model?: string; message: string }>({
     configured: true,
-    model: "gemini-3.8-flash",
+    model: FAST_PRIMARY_MODEL,
     message: "Connecting...",
   });
+  const [selectedModel, setSelectedModel] = useState<string>(FAST_PRIMARY_MODEL);
 
   // Summary State
   const [summaryText, setSummaryText] = useState(PRESET_SUMMARY);
@@ -245,7 +247,18 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantId = `assistant-${Date.now()}`;
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: "model",
+      text: "",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      mode: activeMode,
+      modelName: selectedModel,
+      isStreaming: true,
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setSendingChat(true);
 
     try {
@@ -254,7 +267,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
         text: m.text,
       }));
 
-      const res = await sendAIChat(
+      const res = await streamAIChat(
         textToSend,
         chatHistory,
         {
@@ -262,40 +275,58 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
           focusArea: selectedTrack || "Data Engineering & Analytics",
         },
         activeMode,
-        "gemini-3.8-flash",
-        controller.signal
+        selectedModel,
+        {
+          signal: controller.signal,
+          onChunk: (chunk) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, text: m.text + chunk }
+                  : m
+              )
+            );
+          },
+        }
       );
 
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "model",
-        text: res.reply,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        mode: res.mode || activeMode,
-        thought: res.thought,
-        latencySeconds: res.latencyMs ? Number((res.latencyMs / 1000).toFixed(1)) : undefined,
-        modelName: res.model,
-        isStreaming: true, // triggers typewriter progressive reveal
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                text: res.reply,
+                thought: res.thought,
+                latencySeconds: res.latencyMs ? Number((res.latencyMs / 1000).toFixed(1)) : undefined,
+                modelName: res.model,
+                isStreaming: false,
+              }
+            : m
+        )
+      );
       if (res.model) {
         setStatus((s) => ({ ...s, model: res.model }));
       }
     } catch (err: unknown) {
       if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
-        // User cancelled generation cleanly
+        // User cancelled generation cleanly - preserve whatever was already streamed
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, isStreaming: false } : m))
+        );
         return;
       }
       const errorMsg = err instanceof Error ? err.message : "Failed to get response from AI";
-      const errorMessage: ChatMessage = {
-        id: `err-${Date.now()}`,
-        role: "model",
-        text: `⚠️ **Unable to complete response**: ${errorMsg}\n\nPlease check your internet connection or verify the Gemini API key.`,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        modelName: status.model,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                text: `⚠️ **Unable to complete response**: ${errorMsg}\n\nPlease check your internet connection or verify the Gemini API key.`,
+                isStreaming: false,
+              }
+            : m
+        )
+      );
     } finally {
       setSendingChat(false);
       abortControllerRef.current = null;
@@ -379,7 +410,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
                 </h1>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-mono text-amber-700 dark:text-amber-300">
                   <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Gemini 3.8 Flash Active
+                  {status.model || selectedModel} Active
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground hidden sm:block">
@@ -817,8 +848,8 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
                 ))
               )}
 
-              {/* Waiting / Thinking Indicator: Clean still logo with BounceDots */}
-              {sendingChat && (
+              {/* Waiting / Thinking Indicator: only if no message is currently streaming tokens */}
+              {sendingChat && !messages.some((m) => m.isStreaming) && (
                 <div className="flex items-center gap-3.5 py-1">
                   <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-sm">
                     <Sparkles className="size-4" />
@@ -853,7 +884,9 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
                 onStop={handleStopGeneration}
                 onClear={handleClearChat}
                 isGenerating={sendingChat}
-                modelName="gemini-3.8-flash"
+                modelName={selectedModel}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
                 hasMessages={messages.length > 0}
                 mode={chatMode}
                 onModeChange={setChatMode}

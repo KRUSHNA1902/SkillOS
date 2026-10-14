@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Sparkles,
   User,
@@ -420,38 +420,9 @@ export function ChatMessageItem({
   const [savedNote, setSavedNote] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
 
-  // Progressive revealing state for assistant
-  const [revealedLength, setRevealedLength] = useState(() =>
-    isUser || !message.isStreaming ? message.text.length : 0
-  );
-
-  useEffect(() => {
-    if (isUser || !message.isStreaming) {
-      setRevealedLength(message.text.length);
-      return;
-    }
-
-    // Progressive typewriter / word reveal animation
-    const fullText = message.text;
-    let currentLen = 0;
-    const interval = setInterval(() => {
-      currentLen += Math.floor(Math.random() * 8) + 6;
-      if (currentLen >= fullText.length) {
-        setRevealedLength(fullText.length);
-        clearInterval(interval);
-      } else {
-        setRevealedLength(currentLen);
-      }
-    }, 20);
-
-    return () => clearInterval(interval);
-  }, [message.text, message.isStreaming, isUser]);
-
-  const displayedContent = isUser
-    ? message.text
-    : message.text.slice(0, revealedLength);
-  const isStillRevealing =
-    !isUser && message.isStreaming && revealedLength < message.text.length;
+  // Directly display content as it streams in from the API without artificial delay
+  const displayedContent = message.text;
+  const isStillRevealing = Boolean(!isUser && message.isStreaming);
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(message.text);
@@ -535,10 +506,17 @@ export function ChatMessageItem({
 
             {/* Revealed Text Content */}
             <div className="pt-1">
-              <MarkdownRenderer
-                content={displayedContent}
-                isStreaming={isStillRevealing}
-              />
+              {!displayedContent && isStillRevealing ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                  <span className="inline-block size-2 rounded-full bg-primary animate-ping" />
+                  <span>Connecting & drafting response...</span>
+                </div>
+              ) : (
+                <MarkdownRenderer
+                  content={displayedContent}
+                  isStreaming={isStillRevealing}
+                />
+              )}
             </div>
 
             {/* Embedded Practice Workspace if Challenge Present */}

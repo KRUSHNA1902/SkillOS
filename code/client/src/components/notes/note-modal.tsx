@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { KnowledgeNote, NoteTrack, CodeLanguage } from "./note-types";
 import { TagPicker } from "@/components/tags/tag-picker";
-import { sendAIChat } from "@/lib/ai-service";
+import { sendAIChat, FAST_PRIMARY_MODEL } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
 
 interface NoteModalProps {
@@ -134,7 +134,7 @@ export function NoteModal({
         [],
         { activeTab: "notes", focusArea: area },
         "notes",
-        "gemini-3.8-flash"
+        FAST_PRIMARY_MODEL
       );
 
       if (res.reply) {
