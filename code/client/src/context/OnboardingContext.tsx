@@ -64,7 +64,7 @@ interface OnboardingContextValue {
   resetOnboarding: () => void;
   updateChecklist: (key: keyof ChecklistProgress, completed: boolean) => void;
   startTour: () => void;
-  endTour: () => void;
+  endTour: (completed?: boolean) => void;
   nextTourStep: () => void;
   prevTourStep: () => void;
   setTourStep: (step: number) => void;
@@ -124,6 +124,10 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
           const parsed = JSON.parse(stored);
           return {
             ...parsed,
+            checklist: {
+              ...defaultChecklist,
+              ...(parsed.checklist || {}),
+            },
             userId: user.id,
             isWizardOpen: false, // Don't auto open modal if reloaded unless in progress
             isTourActive: false,
@@ -166,6 +170,10 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         setState((prev) => ({
           ...prev,
           ...parsed,
+          checklist: {
+            ...defaultChecklist,
+            ...(parsed.checklist || {}),
+          },
           userId: user.id,
           // If in_progress or not_started, do not force modal unless status was not_started
           isWizardOpen: parsed.status === "not_started",
@@ -429,9 +437,19 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }));
   }, []);
 
-  const endTour = useCallback(() => {
+  const endTour = useCallback((completed?: boolean) => {
     setState((prev) => {
-      const updatedChecklist = { ...prev.checklist, tourCompleted: true };
+      // Completed if explicitly passed true, or if already at or beyond the last step, or if previously completed
+      const isCompleted =
+        completed === true ||
+        (completed === undefined && prev.currentTourStep >= 4) ||
+        Boolean(prev.checklist?.tourCompleted);
+
+      const updatedChecklist = {
+        ...prev.checklist,
+        tourCompleted: isCompleted,
+      };
+
       const updated: OnboardingState = {
         ...prev,
         isTourActive: false,

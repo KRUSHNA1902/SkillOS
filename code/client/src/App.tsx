@@ -27,6 +27,8 @@ import { TasksView } from "@/components/tasks/tasks-view";
 import { TaskManagerProvider } from "@/components/tasks/task-context";
 import { NotesView } from "@/components/notes/notes-view";
 import { NotesProvider } from "@/components/notes/note-context";
+import { InboxView } from "@/components/inbox/inbox-view";
+import { InboxProvider, useInbox } from "@/components/inbox/inbox-context";
 import { AIAssistantView } from "@/components/ai/ai-assistant-view";
 import { ProfileSettingsDialog } from "@/components/profile/profile-settings-dialog";
 import { UserAvatarIcon } from "@/components/profile/user-avatar-icon";
@@ -65,6 +67,28 @@ import {
   X,
   Zap,
 } from "lucide-react";
+
+function InboxSidebarButton({
+  isActive,
+  onSelect,
+}: {
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const { metrics } = useInbox();
+  return (
+    <AnimatedSidebarMenuItem>
+      <AnimatedSidebarMenuButton
+        icon={<Inbox className="size-4" />}
+        badge={metrics.unread > 0 ? String(metrics.unread) : undefined}
+        isActive={isActive}
+        onSelect={onSelect}
+      >
+        Inbox
+      </AnimatedSidebarMenuButton>
+    </AnimatedSidebarMenuItem>
+  );
+}
 
 function TourSidebarButton() {
   const { startTour } = useOnboarding();
@@ -250,7 +274,8 @@ function App() {
   return (
     <TaskManagerProvider key={`tasks-${user.id}`}>
       <NotesProvider key={`notes-${user.id}`}>
-        <OnboardingProvider key={`onboarding-${user.id}`}>
+        <InboxProvider key={`inbox-${user.id}`}>
+          <OnboardingProvider key={`onboarding-${user.id}`}>
           <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
         <AnimatedSidebarProvider className="h-full w-full overflow-hidden">
         {/* Animated Desktop & Mobile Sidebar */}
@@ -315,16 +340,10 @@ function App() {
                       AI Assistant
                     </AnimatedSidebarMenuButton>
                   </AnimatedSidebarMenuItem>
-                  <AnimatedSidebarMenuItem>
-                    <AnimatedSidebarMenuButton
-                      icon={<Inbox className="size-4" />}
-                      badge="4"
-                      isActive={active === "Inbox"}
-                      onSelect={() => setActive("Inbox")}
-                    >
-                      Inbox
-                    </AnimatedSidebarMenuButton>
-                  </AnimatedSidebarMenuItem>
+                  <InboxSidebarButton
+                    isActive={active === "Inbox"}
+                    onSelect={() => setActive("Inbox")}
+                  />
                 </AnimatedSidebarMenu>
               </AnimatedSidebarGroupContent>
             </AnimatedSidebarGroup>
@@ -485,6 +504,21 @@ function App() {
                 onOpenTasks={() => setActive("Tasks")}
                 onOpenNotes={() => setActive("Notes")}
               />
+            ) : active === "Inbox" ? (
+              <InboxView
+                onNavigateToTasks={() => {
+                  setActive("Tasks");
+                }}
+                onNavigateToAI={() => {
+                  setActive("AI Assistant");
+                }}
+                onNavigateToNotes={() => {
+                  setActive("Notes");
+                }}
+                onNavigateToWorkflows={() => {
+                  setActive("Workflows");
+                }}
+              />
             ) : active === "Tasks" ? (
               <TasksView onNavigateToAI={() => setActive("AI Assistant")} />
             ) : active === "Notes" ? (
@@ -530,7 +564,8 @@ function App() {
       {/* 21st.dev Inspired Spotlight Product Tour */}
       <ProductTour />
     </div>
-        </OnboardingProvider>
+          </OnboardingProvider>
+        </InboxProvider>
       </NotesProvider>
   </TaskManagerProvider>
   );
