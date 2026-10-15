@@ -199,16 +199,26 @@ Please generate a high-yield structured review covering:
       className="flex-1 flex flex-col h-full min-h-0 bg-background text-foreground overflow-hidden"
     >
       {/* Top Project Sub-Header Bar */}
-      <header className="flex items-center justify-between border-b border-border/60 px-4 sm:px-6 py-3 bg-card/70 backdrop-blur-md shrink-0 z-10">
+      <header className={cn(
+        "flex items-center justify-between border-b px-4 sm:px-6 py-3 backdrop-blur-md shrink-0 z-10 transition-colors",
+        isEditing
+          ? "border-amber-500/20 bg-card/85 dark:bg-zinc-950/80"
+          : "border-border/60 bg-card/70"
+      )}>
         {/* Left Nav & Context */}
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={isEditing ? handleCancelEdit : onClose}
-            className="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted hover:border-border transition-colors cursor-pointer shadow-xs shrink-0"
-            title={isEditing ? "Return to Project Details" : "Back to Projects Showcase"}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer shadow-xs shrink-0 active:scale-95",
+              isEditing
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                : "border-border/80 bg-background/80 text-foreground hover:bg-muted"
+            )}
+            title={isEditing ? "Return to Project Details (Esc)" : "Back to Projects Showcase"}
           >
-            <ArrowLeft className="size-3.5 text-primary" />
+            <ArrowLeft className={cn("size-3.5", isEditing ? "text-amber-400" : "text-primary")} />
             <span>{isEditing ? "Back to Details" : "Back to Projects"}</span>
           </button>
 
@@ -231,8 +241,9 @@ Please generate a high-yield structured review covering:
             {isEditing && (
               <>
                 <span>/</span>
-                <span className="inline-flex items-center rounded-md bg-primary/10 border border-primary/25 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase">
-                  Editing
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/35 px-2.5 py-0.5 text-[10px] font-mono font-bold text-amber-300 uppercase tracking-wide shadow-xs">
+                  <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Studio Edit
                 </span>
               </>
             )}
