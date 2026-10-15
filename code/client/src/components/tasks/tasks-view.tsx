@@ -27,6 +27,7 @@ import {
   FolderKanban,
   Tag,
   Settings2,
+  TrendingUp,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -371,84 +372,108 @@ export function TasksView({
       {/* 4 Operations Metric Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-w-0 max-w-full">
         {/* Metric 1: In Progress */}
-        <Card className="border-border/80 bg-card shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              In Progress
-            </CardTitle>
-            <div className="grid size-8 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Flame className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {metrics.inProgress}
-            </div>
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
-              {metrics.dueToday} tasks due today
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ type: "spring", stiffness: 380, damping: 25 }}
+        >
+          <Card className="h-full border-border/80 bg-card/60 backdrop-blur-sm shadow-xs transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                In Progress
+              </CardTitle>
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-500 dark:text-amber-400">
+                <Flame className="size-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl sm:text-5xl font-black tracking-tight text-foreground tabular-nums py-1">
+                {metrics.inProgress}
+              </div>
+              <p className="mt-2 flex items-center text-xs font-semibold text-amber-500 dark:text-amber-400">
+                <Flame className="mr-1.5 size-3.5 shrink-0" />
+                <span>{metrics.dueToday} tasks due today</span>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Metric 2: Overdue Deadlines Alert */}
-        <Card className={`bg-card shadow-xs border-border/80 ${metrics.overdue > 0 ? "border-rose-300 dark:border-rose-500/30" : ""}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Overdue Deadlines
-            </CardTitle>
-            <div className={`grid size-8 place-items-center rounded-xl ${metrics.overdue > 0 ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-muted text-muted-foreground"}`}>
-              <AlertTriangle className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${metrics.overdue > 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"}`}>
-              {metrics.overdue}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {metrics.overdue > 0 ? "Urgent attention required" : "Zero overdue milestones"}
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ type: "spring", stiffness: 380, damping: 25 }}
+        >
+          <Card className={`h-full bg-card/60 backdrop-blur-sm shadow-xs transition-all ${metrics.overdue > 0 ? "border-rose-400/60 dark:border-rose-500/40 hover:border-rose-500 hover:shadow-lg hover:shadow-rose-500/10" : "border-border/80 hover:border-border"}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Overdue Deadlines
+              </CardTitle>
+              <div className={`grid size-10 shrink-0 place-items-center rounded-xl ${metrics.overdue > 0 ? "bg-rose-500/15 text-rose-500 dark:text-rose-400" : "bg-muted text-muted-foreground"}`}>
+                <AlertTriangle className="size-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-4xl sm:text-5xl font-black tracking-tight tabular-nums py-1 ${metrics.overdue > 0 ? "text-rose-500 dark:text-rose-400" : "text-foreground"}`}>
+                {metrics.overdue}
+              </div>
+              <p className="mt-2 flex items-center text-xs font-medium text-muted-foreground">
+                <AlertTriangle className={`mr-1.5 size-3.5 shrink-0 ${metrics.overdue > 0 ? "text-rose-500 dark:text-rose-400" : ""}`} />
+                <span>{metrics.overdue > 0 ? "Urgent attention required" : "Zero overdue milestones"}</span>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Metric 3: Urgent Priority */}
-        <Card className="border-border/80 bg-card shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Urgent Priority
-            </CardTitle>
-            <div className="grid size-8 place-items-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-              <Flag className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {metrics.urgent}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              High impact & security items
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ type: "spring", stiffness: 380, damping: 25 }}
+        >
+          <Card className="h-full border-border/80 bg-card/60 backdrop-blur-sm shadow-xs transition-all hover:border-rose-500/40 hover:shadow-lg hover:shadow-rose-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Urgent Priority
+              </CardTitle>
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-500/10 text-rose-500 dark:text-rose-400">
+                <Flag className="size-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl sm:text-5xl font-black tracking-tight text-foreground tabular-nums py-1">
+                {metrics.urgent}
+              </div>
+              <p className="mt-2 flex items-center text-xs font-medium text-muted-foreground">
+                <Flag className="mr-1.5 size-3.5 text-rose-500 dark:text-rose-400 shrink-0" />
+                <span>High impact & security items</span>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Metric 4: Completed Rate */}
-        <Card className="border-border/80 bg-card shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Completed Tasks
-            </CardTitle>
-            <div className="grid size-8 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {metrics.completed} / {metrics.total}
-            </div>
-            <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              {metrics.completionRate}% sprint completion rate
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ type: "spring", stiffness: 380, damping: 25 }}
+        >
+          <Card className="h-full border-border/80 bg-card/60 backdrop-blur-sm shadow-xs transition-all hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Completed Tasks
+              </CardTitle>
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+                <CheckCircle2 className="size-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl sm:text-5xl font-black tracking-tight text-foreground tabular-nums py-1">
+                {metrics.completed} / {metrics.total}
+              </div>
+              <p className="mt-2 flex items-center text-xs font-semibold text-emerald-500 dark:text-emerald-400">
+                <TrendingUp className="mr-1.5 size-3.5 shrink-0" />
+                <span>{metrics.completionRate}% sprint completion rate</span>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Control Bar: View Switcher, Search & Filters */}

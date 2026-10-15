@@ -1,6 +1,6 @@
 {
   "name": "skillos-server",
-  "version": "19.2.8",
+  "version": "19.2.9",
   "description": "SkillOS Node.js + Express backend",
   "main": "src/server.js",
   "type": "module",
