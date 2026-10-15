@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { motion } from "motion/react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   FolderKanban,
   Plus,
@@ -17,6 +19,8 @@ import {
   Settings2,
   ChevronDown,
   Check,
+  Flame,
+  TrendingUp,
 } from "lucide-react";
 import {
   Project,

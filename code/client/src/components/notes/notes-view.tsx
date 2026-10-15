@@ -29,6 +29,7 @@ import { useNotes } from "./note-context";
 import { useTags } from "@/components/tags/tag-context";
 import { KnowledgeNote, NoteTrack } from "./note-types";
 import { NoteModal } from "./note-modal";
+import { NoteEditor } from "./note-editor";
 import { sendAIChat, FAST_PRIMARY_MODEL } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
 
@@ -109,6 +110,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
   // Modals & Drawers
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<KnowledgeNote | null>(null);
+  const [isEditingInCanvas, setIsEditingInCanvas] = useState(false);
   const [isAISynthesizerOpen, setIsAISynthesizerOpen] = useState(false);
   const [aiTopicInput, setAiTopicInput] = useState("");
   const [aiTrackInput, setAiTrackInput] = useState<NoteTrack>("SQL & Databases");
@@ -582,6 +584,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                       type="button"
                       onClick={() => {
                         setSelectedNoteId(note.id);
+                        setIsEditingInCanvas(false);
                         setMobileReadingNote(true);
                       }}
                       className={cn(
@@ -663,7 +666,20 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
               )}
             >
               {currentSelectedNote ? (
-                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 sm:p-8 space-y-6">
+                isEditingInCanvas ? (
+                  <NoteEditor
+                    note={currentSelectedNote}
+                    onSave={(updatedData) => {
+                      if (updatedData.id) {
+                        updateNote(updatedData.id, updatedData);
+                        showToast("Knowledge note updated successfully");
+                      }
+                      setIsEditingInCanvas(false);
+                    }}
+                    onCancel={() => setIsEditingInCanvas(false)}
+                  />
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 sm:p-8 space-y-6">
                   {/* Mobile Back Button to Notes Master List */}
                   <div className="flex items-center sm:hidden pb-1">
                     <button
@@ -745,8 +761,7 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            setEditingNote(currentSelectedNote);
-                            setIsModalOpen(true);
+                            setIsEditingInCanvas(true);
                           }}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-all cursor-pointer"
                         >
@@ -837,7 +852,8 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                     </div>
                   )}
                 </div>
-              ) : (
+              )
+            ) : (
                 <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
                   Select a note from the left pane to view its content.
                 </div>
@@ -885,8 +901,10 @@ export function NotesView({ onNavigateToAI }: NotesViewProps) {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingNote(note);
-                              setIsModalOpen(true);
+                              setSelectedNoteId(note.id);
+                              setViewMode("studio");
+                              setIsEditingInCanvas(true);
+                              setMobileReadingNote(true);
                             }}
                             className="p-1 text-muted-foreground hover:text-primary cursor-pointer"
                             title="Edit"

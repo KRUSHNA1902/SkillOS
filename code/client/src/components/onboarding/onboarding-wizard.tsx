@@ -291,39 +291,69 @@ export function OnboardingWizard() {
           </div>
         </div>
 
-        {/* Stepper Pill Header Bar */}
-        <div className="shrink-0 px-5 pt-3.5 pb-2 border-b border-zinc-800/60 bg-zinc-950/40 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
-          {stepLabels.map(({ num, label }) => {
-            const isDone = currentStep > num;
-            const isCurrent = currentStep === num;
-            return (
-              <button
-                key={num}
-                type="button"
-                onClick={() => goToStep(num)}
-                className={`flex items-center gap-2 rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
-                  isCurrent
-                    ? "bg-amber-500/15 text-amber-300 border border-amber-500/40"
-                    : isDone
-                    ? "text-zinc-300 hover:bg-zinc-800/60 cursor-pointer"
-                    : "text-zinc-500 cursor-pointer hover:text-zinc-400"
-                }`}
-              >
-                <span
-                  className={`grid size-4.5 place-items-center rounded-full text-[10px] font-bold ${
-                    isDone
-                      ? "bg-emerald-500 text-black"
-                      : isCurrent
-                      ? "bg-amber-400 text-black"
-                      : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
-                  }`}
-                >
-                  {isDone ? <Check className="size-2.5 stroke-[3]" /> : num}
-                </span>
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            );
-          })}
+        {/* Connected Stepper Progress Bar */}
+        <div className="shrink-0 px-5 sm:px-6 py-3.5 border-b border-zinc-800/70 bg-zinc-950/40 overflow-x-auto no-scrollbar">
+          <nav aria-label="Onboarding Progress" className="w-full">
+            <ol className="flex items-center justify-between w-full">
+              {stepLabels.map(({ num, label }, index) => {
+                const isDone = currentStep > num;
+                const isCurrent = currentStep === num;
+                const isLast = index === stepLabels.length - 1;
+
+                return (
+                  <li
+                    key={num}
+                    className={`flex items-center ${!isLast ? "flex-1" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => goToStep(num)}
+                      className="flex items-center gap-2 sm:gap-2.5 shrink-0 group cursor-pointer focus:outline-none transition-all"
+                      aria-current={isCurrent ? "step" : undefined}
+                    >
+                      <span
+                        className={`size-7 rounded-full grid place-items-center text-xs font-semibold transition-all select-none shrink-0 leading-none ${
+                          isCurrent
+                            ? "border-2 border-white text-white bg-transparent shadow-[0_0_12px_rgba(255,255,255,0.18)]"
+                            : isDone
+                            ? "border border-zinc-400 text-zinc-200 bg-zinc-900/60 group-hover:border-zinc-300 group-hover:text-white"
+                            : "border border-zinc-800 text-zinc-500 bg-transparent group-hover:border-zinc-700 group-hover:text-zinc-400"
+                        }`}
+                      >
+                        {isDone ? (
+                          <Check className="size-3.5 stroke-[2.5]" />
+                        ) : (
+                          <span>{num}</span>
+                        )}
+                      </span>
+                      <span
+                        className={`text-xs sm:text-sm font-medium whitespace-nowrap transition-colors select-none ${
+                          isCurrent ? "inline" : "hidden sm:inline"
+                        } ${
+                          isCurrent
+                            ? "text-white font-semibold"
+                            : isDone
+                            ? "text-zinc-300 group-hover:text-zinc-100"
+                            : "text-zinc-500 group-hover:text-zinc-400"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </button>
+
+                    {!isLast && (
+                      <div
+                        className={`flex-1 h-[1px] mx-2 sm:mx-3 transition-colors ${
+                          isDone ? "bg-zinc-600" : "bg-zinc-800"
+                        }`}
+                        aria-hidden="true"
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
         </div>
 
         {/* Wizard Step Body */}
