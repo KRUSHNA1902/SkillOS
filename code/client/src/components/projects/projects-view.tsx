@@ -114,6 +114,7 @@ export function ProjectsView({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [inspectingProject, setInspectingProject] = useState<Project | null>(null);
+  const [isEditingInInspector, setIsEditingInInspector] = useState(false);
 
   // Compute top tags used across projects
   const projectTopTags = useMemo(() => {
@@ -190,8 +191,8 @@ export function ProjectsView({
   }, [projects, statusFilter, trackFilter, selectedTag, searchQuery, sortBy]);
 
   const handleOpenEdit = (project: Project) => {
-    setEditingProject(project);
-    setIsModalOpen(true);
+    setInspectingProject(project);
+    setIsEditingInInspector(true);
   };
 
   const handleCreateNew = (defaultStatus?: ProjectStatus) => {
@@ -218,23 +219,16 @@ export function ProjectsView({
         <ProjectDetailsInspector
           project={currentInspectingProject}
           isOpen={true}
-          onClose={() => setInspectingProject(null)}
-          onEdit={(p) => {
-            handleOpenEdit(p);
+          initialIsEditing={isEditingInInspector}
+          onClose={() => {
+            setInspectingProject(null);
+            setIsEditingInInspector(false);
+          }}
+          onEdit={() => {
+            setIsEditingInInspector(true);
           }}
           onNavigateToTasks={onNavigateToTasks}
           onNavigateToNotes={onNavigateToNotes}
-        />
-
-        {/* Creation & Edit Modal (Available when editing inside Project Details) */}
-        <ProjectModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingProject(null);
-          }}
-          onSave={handleSaveProject}
-          initialProject={editingProject}
         />
       </div>
     );

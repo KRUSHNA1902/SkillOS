@@ -112,7 +112,7 @@ export function TagPicker({
       {/* Selected Tags Box with Input */}
       <div
         onClick={() => inputRef.current?.focus()}
-        className="min-h-[42px] flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-background/80 p-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all cursor-text"
+        className="min-h-[44px] flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-background/80 p-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all cursor-text shadow-xs"
       >
         {selectedTags.map((tagName) => {
           const colorKey = getTagColor(tagName);
@@ -122,7 +122,7 @@ export function TagPicker({
             <span
               key={tagName}
               className={cn(
-                "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-medium transition-all group",
+                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all group shadow-2xs",
                 colorCfg.badge
               )}
             >
@@ -241,9 +241,9 @@ export function TagPicker({
 
       {/* Suggested Quick-Pills */}
       {suggestedPills.length > 0 && selectedTags.length < 5 && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1 mr-0.5">
-            <Tag className="size-3" />
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-xs text-muted-foreground/80 flex items-center gap-1.5 mr-0.5 font-medium">
+            <Tag className="size-3 text-primary/70" />
             <span>Suggestions:</span>
           </span>
           {suggestedPills.map((t) => (
@@ -252,18 +252,18 @@ export function TagPicker({
               type="button"
               onClick={() => handleAddTag(t.name)}
               className={cn(
-                "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1",
+                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-102",
                 getTagClass(t.name)
               )}
             >
               <span>#{t.name}</span>
-              <Plus className="size-2.5 opacity-60" />
+              <Plus className="size-3 opacity-60" />
             </button>
           ))}
           <button
             type="button"
             onClick={() => openTagManager()}
-            className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1 cursor-pointer"
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1 cursor-pointer font-medium"
           >
             Manage
           </button>

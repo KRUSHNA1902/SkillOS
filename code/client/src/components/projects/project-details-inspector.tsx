@@ -32,12 +32,14 @@ import { useTags } from "@/components/tags/tag-context";
 import { TRACK_THEMES, STATUS_CONFIG } from "./project-card";
 import { callGeminiDirectly } from "@/lib/ai-service";
 import { cn } from "@/lib/utils";
+import { ProjectEditor } from "./project-editor";
 
 interface ProjectDetailsInspectorProps {
   project: Project | null;
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (project: Project) => void;
+  onEdit?: (project: Project) => void;
+  initialIsEditing?: boolean;
   onNavigateToTasks?: () => void;
   onNavigateToNotes?: () => void;
 }
@@ -47,10 +49,12 @@ export function ProjectDetailsInspector({
   isOpen,
   onClose,
   onEdit,
+  initialIsEditing = false,
   onNavigateToTasks,
   onNavigateToNotes,
 }: ProjectDetailsInspectorProps) {
   const {
+    updateProject,
     toggleMilestoneStatus,
     toggleDeliverable,
     advanceProjectStatus,
@@ -73,16 +77,43 @@ export function ProjectDetailsInspector({
   const [isAIReviewing, setIsAIReviewing] = useState(false);
   const [aiReviewOutput, setAiReviewOutput] = useState<string | null>(null);
 
-  // Close on Escape key press
+  // In-Canvas Edit State
+  const [isEditing, setIsEditing] = useState(initialIsEditing);
+
+  useEffect(() => {
+    setIsEditing(initialIsEditing);
+  }, [initialIsEditing]);
+
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    if (onEdit && project) onEdit(project);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = (projectData: any) => {
+    if (projectData.id) {
+      updateProject(projectData.id, projectData);
+    }
+    setIsEditing(false);
+  };
+
+  // Close on Escape key press (or cancel edit if editing)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        onClose();
+        if (isEditing) {
+          setIsEditing(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isEditing, onClose]);
 
   if (!isOpen || !project) return null;
 
@@ -173,12 +204,12 @@ Please generate a high-yield structured review covering:
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
-            onClick={onClose}
+            onClick={isEditing ? handleCancelEdit : onClose}
             className="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted hover:border-border transition-colors cursor-pointer shadow-xs shrink-0"
-            title="Back to Projects Showcase"
+            title={isEditing ? "Return to Project Details" : "Back to Projects Showcase"}
           >
             <ArrowLeft className="size-3.5 text-primary" />
-            <span>Back to Projects</span>
+            <span>{isEditing ? "Back to Details" : "Back to Projects"}</span>
           </button>
 
           {/* Breadcrumbs for In-Canvas View */}
@@ -197,82 +228,114 @@ Please generate a high-yield structured review covering:
             <span className="font-semibold text-foreground truncate max-w-[260px]">
               {project.title}
             </span>
+            {isEditing && (
+              <>
+                <span>/</span>
+                <span className="inline-flex items-center rounded-md bg-primary/10 border border-primary/25 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase">
+                  Editing
+                </span>
+              </>
+            )}
           </div>
 
-          {/* Status pill */}
-          <span
-            className={cn(
-              "hidden md:inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium shrink-0",
-              statusCfg.badge
-            )}
-          >
-            <span className={cn("size-1.5 rounded-full", statusCfg.dot)} />
-            {statusCfg.label}
-          </span>
+          {/* Status pill (view mode only) */}
+          {!isEditing && (
+            <span
+              className={cn(
+                "hidden md:inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium shrink-0",
+                statusCfg.badge
+              )}
+            >
+              <span className={cn("size-1.5 rounded-full", statusCfg.dot)} />
+              {statusCfg.label}
+            </span>
+          )}
 
-          {/* Advance Stage button */}
-          <button
-            type="button"
-            onClick={() => advanceProjectStatus(project.id)}
-            className="hidden lg:inline-flex items-center text-[11px] font-mono font-medium text-primary hover:underline cursor-pointer shrink-0"
-            title="Advance to next project workflow stage"
-          >
-            Advance Stage →
-          </button>
+          {/* Advance Stage button (view mode only) */}
+          {!isEditing && (
+            <button
+              type="button"
+              onClick={() => advanceProjectStatus(project.id)}
+              className="hidden lg:inline-flex items-center text-[11px] font-mono font-medium text-primary hover:underline cursor-pointer shrink-0"
+              title="Advance to next project workflow stage"
+            >
+              Advance Stage →
+            </button>
+          )}
         </div>
 
         {/* Right Action Bar */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Pin Project button */}
-          <button
-            type="button"
-            onClick={() => togglePinProject(project.id)}
-            className={cn(
-              "grid size-8 place-items-center rounded-lg transition-colors cursor-pointer",
-              project.pinned
-                ? "text-amber-400 bg-amber-400/10"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-            title={project.pinned ? "Unpin project" : "Pin project"}
-          >
-            <Star className={cn("size-4", project.pinned && "fill-amber-400")} />
-          </button>
+          {isEditing ? (
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              title="Exit Edit Mode (Esc)"
+            >
+              <X className="size-4" />
+            </button>
+          ) : (
+            <>
+              {/* Pin Project button */}
+              <button
+                type="button"
+                onClick={() => togglePinProject(project.id)}
+                className={cn(
+                  "grid size-8 place-items-center rounded-lg transition-colors cursor-pointer",
+                  project.pinned
+                    ? "text-amber-400 bg-amber-400/10"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+                title={project.pinned ? "Unpin project" : "Pin project"}
+              >
+                <Star className={cn("size-4", project.pinned && "fill-amber-400")} />
+              </button>
 
-          {/* Export Markdown */}
-          <button
-            type="button"
-            onClick={() => exportProjectMarkdown(project)}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-            title="Export Markdown (.md)"
-          >
-            <Download className="size-4" />
-          </button>
+              {/* Export Markdown */}
+              <button
+                type="button"
+                onClick={() => exportProjectMarkdown(project)}
+                className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                title="Export Markdown (.md)"
+              >
+                <Download className="size-4" />
+              </button>
 
-          {/* Edit Project */}
-          <button
-            type="button"
-            onClick={() => onEdit(project)}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-            title="Edit Project Details"
-          >
-            <Edit2 className="size-4" />
-          </button>
+              {/* Edit Project */}
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                title="Edit Project Details"
+              >
+                <Edit2 className="size-4" />
+              </button>
 
-          {/* Close / Return Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer ml-1"
-            title="Back to Projects Showcase"
-          >
-            <X className="size-4" />
-          </button>
+              {/* Close / Return Button */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer ml-1"
+                title="Back to Projects Showcase"
+              >
+                <X className="size-4" />
+              </button>
+            </>
+          )}
         </div>
       </header>
 
       {/* MAIN SCROLLABLE BODY */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {isEditing ? (
+          <ProjectEditor
+            project={project}
+            onSave={handleSaveEdit}
+            onCancel={handleCancelEdit}
+          />
+        ) : (
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Hero Banner Card */}
           <div className="rounded-2xl border border-border/70 bg-card/60 p-6 sm:p-8 backdrop-blur-md space-y-5">
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
@@ -370,7 +433,7 @@ Please generate a high-yield structured review covering:
 
                 <button
                   type="button"
-                  onClick={() => onEdit(project)}
+                  onClick={handleStartEdit}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                 >
                   <Edit2 className="size-3.5" />
@@ -1020,7 +1083,8 @@ Please generate a high-yield structured review covering:
             </div>
           </div>
         </div>
-      </div>
-    </motion.div>
-  );
+      )}
+    </div>
+  </motion.div>
+);
 }

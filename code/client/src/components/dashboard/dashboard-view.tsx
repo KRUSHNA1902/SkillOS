@@ -320,22 +320,22 @@ export function DashboardView({
           transition={{ type: "spring", stiffness: 380, damping: 25 }}
         >
           <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-base sm:text-lg font-black uppercase tracking-wider text-foreground leading-tight">
                 Current Tasks
               </CardTitle>
-              <div className="grid size-9 place-items-center rounded-xl bg-amber-500/10 text-amber-400">
-                <PlayCircle className="size-4.5" />
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-400">
+                <PlayCircle className="size-5" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-foreground">
+              <div className="text-5xl sm:text-6xl font-black tracking-tight text-foreground tabular-nums py-1">
                 {inProgressCount}
               </div>
-              <p className="mt-2 flex items-center text-xs font-medium text-amber-400">
-                <Flame className="mr-1 size-3.5" />
+              <p className="mt-3 flex items-center text-xs sm:text-sm font-semibold text-amber-400">
+                <Flame className="mr-1.5 size-4 shrink-0" />
                 <span>Active in progress</span>
-                <span className="ml-auto text-muted-foreground">3 due today</span>
+                <span className="ml-auto text-muted-foreground font-medium">3 due today</span>
               </p>
             </CardContent>
           </Card>
@@ -347,22 +347,22 @@ export function DashboardView({
           transition={{ type: "spring", stiffness: 380, damping: 25 }}
         >
           <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-base sm:text-lg font-black uppercase tracking-wider text-foreground leading-tight">
                 Tasks Completed
               </CardTitle>
-              <div className="grid size-9 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                <CheckCircle2 className="size-4.5" />
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                <CheckCircle2 className="size-5" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-foreground">
+              <div className="text-5xl sm:text-6xl font-black tracking-tight text-foreground tabular-nums py-1">
                 {completedCount}
               </div>
-              <p className="mt-2 flex items-center text-xs font-medium text-emerald-400">
-                <TrendingUp className="mr-1 size-3.5" />
+              <p className="mt-3 flex items-center text-xs sm:text-sm font-semibold text-emerald-400">
+                <TrendingUp className="mr-1.5 size-4 shrink-0" />
                 <span>{completionRate}% of sprint goal</span>
-                <span className="ml-auto text-muted-foreground">+{completedCount} finished</span>
+                <span className="ml-auto text-muted-foreground font-medium">+{completedCount} finished</span>
               </p>
             </CardContent>
           </Card>
@@ -374,22 +374,22 @@ export function DashboardView({
           transition={{ type: "spring", stiffness: 380, damping: 25 }}
         >
           <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-base sm:text-lg font-black uppercase tracking-wider text-foreground leading-tight">
                 Pending / Queued
               </CardTitle>
-              <div className="grid size-9 place-items-center rounded-xl bg-blue-500/10 text-blue-400">
-                <AlertCircle className="size-4.5" />
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-400">
+                <AlertCircle className="size-5" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-foreground">
+              <div className="text-5xl sm:text-6xl font-black tracking-tight text-foreground tabular-nums py-1">
                 {pendingCount}
               </div>
-              <p className="mt-2 flex items-center text-xs font-medium text-blue-400">
-                <Clock className="mr-1 size-3.5" />
+              <p className="mt-3 flex items-center text-xs sm:text-sm font-semibold text-blue-400">
+                <Clock className="mr-1.5 size-4 shrink-0" />
                 <span>Awaiting review & backlog</span>
-                <span className="ml-auto text-muted-foreground">1 blocked</span>
+                <span className="ml-auto text-muted-foreground font-medium">1 blocked</span>
               </p>
             </CardContent>
           </Card>
@@ -401,22 +401,22 @@ export function DashboardView({
           transition={{ type: "spring", stiffness: 380, damping: 25 }}
         >
           <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/5">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+              <CardTitle className="text-base sm:text-lg font-black uppercase tracking-wider text-foreground leading-tight">
                 Sprint Velocity
               </CardTitle>
-              <div className="grid size-9 place-items-center rounded-xl bg-purple-500/10 text-purple-400">
-                <Zap className="size-4.5" />
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-purple-500/10 text-purple-400">
+                <Zap className="size-5" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-foreground">
+              <div className="text-5xl sm:text-6xl font-black tracking-tight text-foreground tabular-nums py-1">
                 94%
               </div>
-              <p className="mt-2 flex items-center text-xs font-medium text-purple-400">
-                <Sparkles className="mr-1 size-3.5" />
+              <p className="mt-3 flex items-center text-xs sm:text-sm font-semibold text-purple-400">
+                <Sparkles className="mr-1.5 size-4 shrink-0" />
                 <span>Optimal pacing</span>
-                <span className="ml-auto text-muted-foreground">+5.4 pts ahead</span>
+                <span className="ml-auto text-muted-foreground font-medium">+5.4 pts ahead</span>
               </p>
             </CardContent>
           </Card>
