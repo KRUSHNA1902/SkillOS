@@ -290,64 +290,145 @@ export function ProjectsView({
           </div>
         </div>
 
-        {/* High-Density KPI Summary Ribbon */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[11px] font-mono uppercase tracking-wider">Total Projects</span>
-              <FolderKanban className="size-4 text-primary" />
-            </div>
-            <div className="mt-1.5 flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">{metrics.total}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">portfolio builds</span>
-            </div>
-          </div>
+        {/* KPI Metric Cards */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 min-w-0 max-w-full">
+          {/* 1. Total Projects */}
+          <motion.div
+            whileHover={{ y: -3 }}
+            transition={{ type: "spring", stiffness: 380, damping: 25 }}
+          >
+            <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total Projects
+                </CardTitle>
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <FolderKanban className="size-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-foreground tabular-nums py-1">
+                  {metrics.total}
+                </div>
+                <p className="mt-2 flex items-center text-xs font-medium text-muted-foreground">
+                  <FolderKanban className="mr-1.5 size-3.5 text-primary shrink-0" />
+                  <span>portfolio builds</span>
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[11px] font-mono uppercase tracking-wider">In Active Sprint</span>
-              <span className="size-2 rounded-full bg-blue-400 animate-pulse" />
-            </div>
-            <div className="mt-1.5 flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-blue-400">{metrics.inProgress}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">active builds</span>
-            </div>
-          </div>
+          {/* 2. In Active Sprint */}
+          <motion.div
+            whileHover={{ y: -3 }}
+            transition={{ type: "spring", stiffness: 380, damping: 25 }}
+          >
+            <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  In Active Sprint
+                </CardTitle>
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-400">
+                  <Flame className="size-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-blue-400 tabular-nums py-1">
+                  {metrics.inProgress}
+                </div>
+                <p className="mt-2 flex items-center text-xs font-semibold text-blue-400">
+                  <span className="mr-1.5 size-2 rounded-full bg-blue-400 animate-pulse" />
+                  <span>active builds</span>
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[11px] font-mono uppercase tracking-wider">Completed</span>
-              <CheckCircle2 className="size-4 text-emerald-400" />
-            </div>
-            <div className="mt-1.5 flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-emerald-400">{metrics.completed}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">portfolio ready</span>
-            </div>
-          </div>
+          {/* 3. Completed */}
+          <motion.div
+            whileHover={{ y: -3 }}
+            transition={{ type: "spring", stiffness: 380, damping: 25 }}
+          >
+            <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Completed
+                </CardTitle>
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                  <CheckCircle2 className="size-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-emerald-400 tabular-nums py-1">
+                  {metrics.completed}
+                </div>
+                <p className="mt-2 flex items-center text-xs font-semibold text-emerald-400">
+                  <TrendingUp className="mr-1.5 size-3.5 shrink-0" />
+                  <span>portfolio ready</span>
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[11px] font-mono uppercase tracking-wider">Hours Invested</span>
-              <Clock className="size-4 text-amber-400" />
-            </div>
-            <div className="mt-1.5 flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">{metrics.totalLoggedHours}h</span>
-              <span className="text-[10px] text-muted-foreground font-mono">/ {metrics.totalEstimatedHours}h est</span>
-            </div>
-          </div>
+          {/* 4. Hours Invested */}
+          <motion.div
+            whileHover={{ y: -3 }}
+            transition={{ type: "spring", stiffness: 380, damping: 25 }}
+          >
+            <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Hours Invested
+                </CardTitle>
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-400">
+                  <Clock className="size-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-foreground tabular-nums py-1">
+                  {metrics.totalLoggedHours}h
+                </div>
+                <p className="mt-2 flex items-center text-xs font-medium text-muted-foreground">
+                  <Clock className="mr-1.5 size-3.5 text-amber-400 shrink-0" />
+                  <span>/ {metrics.totalEstimatedHours}h est</span>
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-          <div className="col-span-2 sm:col-span-1 rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[11px] font-mono uppercase tracking-wider">Average Progress</span>
-              <span className="text-xs font-mono font-bold text-foreground">{metrics.averageProgress}%</span>
-            </div>
-            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
-              <div
-                style={{ width: `${metrics.averageProgress}%` }}
-                className="h-full rounded-full bg-primary transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-              />
-            </div>
-          </div>
+          {/* 5. Average Progress */}
+          <motion.div
+            whileHover={{ y: -3 }}
+            transition={{ type: "spring", stiffness: 380, damping: 25 }}
+            className="sm:col-span-2 lg:col-span-1 xl:col-span-1"
+          >
+            <Card className="h-full border-border bg-card/60 backdrop-blur-sm transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Average Progress
+                </CardTitle>
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <TrendingUp className="size-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight text-foreground tabular-nums py-1">
+                  {metrics.averageProgress}%
+                </div>
+                <div className="mt-3 space-y-1">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
+                    <div
+                      style={{ width: `${metrics.averageProgress}%` }}
+                      className="h-full rounded-full bg-primary transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium text-right">
+                    Across all projects
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Filter Toolbar & View Switcher */}
