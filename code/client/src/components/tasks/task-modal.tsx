@@ -251,6 +251,7 @@ export function TaskModal({
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            transition={{ type: "spring", damping: 26, stiffness: 360 }}
             className="relative flex flex-col w-full max-w-4xl max-h-[88vh] md:max-h-[620px] rounded-3xl border border-border/80 bg-card shadow-2xl shadow-black/80 z-10 text-foreground overflow-hidden"
           >
             {/* Header Banner */}
