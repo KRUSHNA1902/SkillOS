@@ -34,6 +34,7 @@ import { useTaskManager } from "@/components/tasks/task-context";
 import { useProjects } from "@/components/projects/project-context";
 import { useNotes } from "@/components/notes/note-context";
 import { useTags } from "@/components/tags/tag-context";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -43,8 +44,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const SEARCH_HISTORY_KEY = "skillos_search_history_v1";
 
 export interface SearchViewProps {
   initialQuery?: string;
@@ -107,6 +106,9 @@ export function SearchView({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load Contexts
+  const { user } = useAuth();
+  const searchStorageKey = user?.id ? `skillos_search_history_${user.id}` : "skillos_search_history_guest";
+
   const { tasks, updateTask } = useTaskManager();
   const { projects, setSelectedProjectId } = useProjects();
   const { notes, togglePinNote, setSelectedNoteId } = useNotes();
@@ -115,14 +117,16 @@ export function SearchView({
   // Load Search History
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(SEARCH_HISTORY_KEY);
+      const stored = localStorage.getItem(searchStorageKey);
       if (stored) {
         setHistory(JSON.parse(stored));
+      } else {
+        setHistory([]);
       }
     } catch (e) {
       console.warn("Failed to load search history:", e);
     }
-  }, []);
+  }, [searchStorageKey]);
 
   const saveToHistory = (item: string) => {
     const trimmed = item.trim();
@@ -130,7 +134,7 @@ export function SearchView({
     setHistory((prev) => {
       const next = [trimmed, ...prev.filter((h) => h.toLowerCase() !== trimmed.toLowerCase())].slice(0, 8);
       try {
-        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+        localStorage.setItem(searchStorageKey, JSON.stringify(next));
       } catch (e) {
         console.warn("Failed to save search history:", e);
       }
@@ -141,7 +145,7 @@ export function SearchView({
   const clearHistory = () => {
     setHistory([]);
     try {
-      localStorage.removeItem(SEARCH_HISTORY_KEY);
+      localStorage.removeItem(searchStorageKey);
     } catch (e) {
       console.warn("Failed to clear search history:", e);
     }
@@ -291,7 +295,7 @@ export function SearchView({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
+    <div className="flex h-full flex-col w-full max-w-full overflow-hidden overflow-x-hidden bg-background">
       {/* ===================== TOP HEADER & OMNI SEARCH BAR ===================== */}
       <div className="border-b border-border/70 bg-card/60 backdrop-blur-md px-4 sm:px-6 py-4 space-y-3">
         {/* Omni Search Input Box */}

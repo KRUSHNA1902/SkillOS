@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { useTags } from "@/components/tags/tag-context";
 import {
   Project,
@@ -8,7 +9,7 @@ import {
   ProjectTrack,
 } from "./project-types";
 
-const STORAGE_KEY = "skillos_projects_v1";
+export const LEGACY_STORAGE_KEY = "skillos_projects_v1";
 
 export const INITIAL_PROJECTS_SEED: Project[] = [
   {
@@ -508,12 +509,23 @@ function calculateAutoProgress(milestones: ProjectMilestone[]): number {
 }
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const isDevUser = user?.id === "dev-user-001";
+  const storageKey = user ? `skillos_projects_${user.id}` : "skillos_projects_guest";
+
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
+      const stored = localStorage.getItem(storageKey);
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
+      }
+      if (isDevUser) {
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy !== null) {
+          const parsed = JSON.parse(legacy);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
       }
     } catch (e) {
       console.warn("[ProjectsProvider] Error loading projects from localStorage:", e);
@@ -526,11 +538,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   // Sync to local storage on change
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      localStorage.setItem(storageKey, JSON.stringify(projects));
     } catch (e) {
       console.warn("[ProjectsProvider] Error saving projects to localStorage:", e);
     }
-  }, [projects]);
+  }, [projects, storageKey]);
 
   // Hook into Central Tag System for automatic rename and delete sync
   const { registerTagRenameListener, registerTagDeleteListener } = useTags();
@@ -631,7 +643,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     projectData: Omit<Project, "id" | "createdAt" | "updatedAt" | "progress"> & { progress?: number }
   ): Project => {
     const now = new Date().toISOString();
-    const id = `proj-${Date.now()}`;
+    const id = typeof crypto !== "undefined" && crypto.randomUUID
+      ? `proj-${crypto.randomUUID()}`
+      : `proj-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const calculatedProgress = projectData.progress ?? calculateAutoProgress(projectData.milestones || []);
 
     const newProject: Project = {

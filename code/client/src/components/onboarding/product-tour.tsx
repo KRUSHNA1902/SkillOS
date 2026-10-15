@@ -212,8 +212,9 @@ export function ProductTour() {
       <svg
         className="absolute inset-0 size-full pointer-events-auto"
         style={{
-          width: "100vw",
-          height: "100vh",
+          width: "100%",
+          maxWidth: "100vw",
+          height: "100%",
         }}
       >
         <defs>

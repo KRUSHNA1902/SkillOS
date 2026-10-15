@@ -45,6 +45,9 @@ export interface OnboardingState {
   lastSavedAt: string;
   draft: OnboardingDraftData;
   checklist: ChecklistProgress;
+  checklistDismissed: boolean;
+  checklistCollapsed: boolean;
+  checklistCompletedAt: string | null;
   isWizardOpen: boolean;
   isTourActive: boolean;
   currentTourStep: number;
@@ -63,6 +66,10 @@ interface OnboardingContextValue {
   skipOnboarding: () => void;
   resetOnboarding: () => void;
   updateChecklist: (key: keyof ChecklistProgress, completed: boolean) => void;
+  dismissChecklist: () => void;
+  restoreChecklist: () => void;
+  toggleChecklistCollapsed: (collapsed?: boolean) => void;
+  syncChecklistItems: (items: Partial<ChecklistProgress>) => void;
   startTour: () => void;
   endTour: (completed?: boolean) => void;
   nextTourStep: () => void;
@@ -128,6 +135,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
               ...defaultChecklist,
               ...(parsed.checklist || {}),
             },
+            checklistDismissed: Boolean(parsed.checklistDismissed),
+            checklistCollapsed: Boolean(parsed.checklistCollapsed),
+            checklistCompletedAt: parsed.checklistCompletedAt || null,
             userId: user.id,
             isWizardOpen: false, // Don't auto open modal if reloaded unless in progress
             isTourActive: false,
@@ -152,6 +162,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         accentColor: user?.accentColor || "amber",
       },
       checklist: { ...defaultChecklist },
+      checklistDismissed: false,
+      checklistCollapsed: false,
+      checklistCompletedAt: null,
       // Auto open wizard for newly registered or first-time users
       isWizardOpen: Boolean(user && user.id),
       isTourActive: false,
@@ -174,6 +187,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
             ...defaultChecklist,
             ...(parsed.checklist || {}),
           },
+          checklistDismissed: Boolean(parsed.checklistDismissed),
+          checklistCollapsed: Boolean(parsed.checklistCollapsed),
+          checklistCompletedAt: parsed.checklistCompletedAt || null,
           userId: user.id,
           // If in_progress or not_started, do not force modal unless status was not_started
           isWizardOpen: parsed.status === "not_started",
@@ -199,6 +215,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
             accentColor: user.accentColor || "amber",
           },
           checklist: { ...defaultChecklist },
+          checklistDismissed: false,
+          checklistCollapsed: false,
+          checklistCompletedAt: null,
           isWizardOpen: true,
           isTourActive: false,
           currentTourStep: 0,
@@ -223,6 +242,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
           lastSavedAt: new Date().toISOString(),
           draft: updated.draft,
           checklist: updated.checklist,
+          checklistDismissed: Boolean(updated.checklistDismissed),
+          checklistCollapsed: Boolean(updated.checklistCollapsed),
+          checklistCompletedAt: updated.checklistCompletedAt || null,
         };
         localStorage.setItem(getStorageKey(user.id), JSON.stringify(toSave));
       } catch (e) {
@@ -404,6 +426,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         accentColor: user.accentColor || "amber",
       },
       checklist: { ...defaultChecklist },
+      checklistDismissed: false,
+      checklistCollapsed: false,
+      checklistCompletedAt: null,
       isWizardOpen: true,
       isTourActive: false,
       currentTourStep: 0,
@@ -419,6 +444,72 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         const updated: OnboardingState = {
           ...prev,
           checklist: updatedChecklist,
+          lastSavedAt: new Date().toISOString(),
+        };
+        persistState(updated);
+        return updated;
+      });
+    },
+    [persistState]
+  );
+
+  const dismissChecklist = useCallback(() => {
+    setState((prev) => {
+      const updated: OnboardingState = {
+        ...prev,
+        checklistDismissed: true,
+        lastSavedAt: new Date().toISOString(),
+      };
+      persistState(updated);
+      return updated;
+    });
+  }, [persistState]);
+
+  const restoreChecklist = useCallback(() => {
+    setState((prev) => {
+      const updated: OnboardingState = {
+        ...prev,
+        checklistDismissed: false,
+        lastSavedAt: new Date().toISOString(),
+      };
+      persistState(updated);
+      return updated;
+    });
+  }, [persistState]);
+
+  const toggleChecklistCollapsed = useCallback(
+    (collapsed?: boolean) => {
+      setState((prev) => {
+        const nextCollapsed =
+          collapsed !== undefined ? collapsed : !prev.checklistCollapsed;
+        const updated: OnboardingState = {
+          ...prev,
+          checklistCollapsed: nextCollapsed,
+          lastSavedAt: new Date().toISOString(),
+        };
+        persistState(updated);
+        return updated;
+      });
+    },
+    [persistState]
+  );
+
+  const syncChecklistItems = useCallback(
+    (itemsToSync: Partial<ChecklistProgress>) => {
+      setState((prev) => {
+        let changed = false;
+        const nextChecklist = { ...prev.checklist };
+        for (const [key, value] of Object.entries(itemsToSync)) {
+          const k = key as keyof ChecklistProgress;
+          if (value !== undefined && nextChecklist[k] !== value) {
+            nextChecklist[k] = value;
+            changed = true;
+          }
+        }
+        if (!changed) return prev;
+        const updated: OnboardingState = {
+          ...prev,
+          checklist: nextChecklist,
           lastSavedAt: new Date().toISOString(),
         };
         persistState(updated);
@@ -510,6 +601,10 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         skipOnboarding,
         resetOnboarding,
         updateChecklist,
+        dismissChecklist,
+        restoreChecklist,
+        toggleChecklistCollapsed,
+        syncChecklistItems,
         startTour,
         endTour,
         nextTourStep,

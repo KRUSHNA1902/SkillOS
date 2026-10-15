@@ -1,7 +1,7 @@
 {
   "name": "skillos",
   "private": true,
-  "version": "1.0.0",
+  "version": "19.2.4",
   "type": "module",
   "workspaces": [
     "code/client",
@@ -12,7 +12,13 @@
     "dev:client": "npm run dev --workspace=skillos-client",
     "dev:server": "npm run dev --workspace=skillos-server",
     "build": "npm run build --workspace=skillos-client",
-    "server": "npm run dev --workspace=skillos-server"
+    "server": "npm run dev --workspace=skillos-server",
+    "version:current": "node scripts/auto-version.js current",
+    "version:patch": "node scripts/auto-version.js patch",
+    "version:minor": "node scripts/auto-version.js minor",
+    "version:major": "node scripts/auto-version.js major",
+    "version:set": "node scripts/auto-version.js set",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

@@ -214,7 +214,7 @@ export function ProjectsView({
   // while keeping the sidebar navigation menu and top header intact
   if (currentInspectingProject) {
     return (
-      <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-full overflow-x-hidden bg-background overflow-hidden">
         <ProjectDetailsInspector
           project={currentInspectingProject}
           isOpen={true}
@@ -241,7 +241,7 @@ export function ProjectsView({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background overflow-y-auto">
+    <div className="flex-1 flex flex-col min-h-0 w-full max-w-full overflow-x-hidden bg-background overflow-y-auto">
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Top Header & Quick Actions */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

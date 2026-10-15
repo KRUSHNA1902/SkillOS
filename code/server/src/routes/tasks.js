@@ -99,12 +99,13 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/', requireAuth, async (req, res) => {
   try {
     const taskData = req.body;
-    if (!taskData.title || !taskData.deadline) {
-      return res.status(400).json({ error: 'Task title and deadline are required' });
+    if (!taskData.title) {
+      return res.status(400).json({ error: 'Task title is required' });
     }
 
     const taskId = taskData.id || `task-${Date.now()}`;
-    const row = mapTaskToRow({ ...taskData, id: taskId }, req.user.id);
+    const deadline = taskData.deadline || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const row = mapTaskToRow({ ...taskData, id: taskId, deadline }, req.user.id);
     row.created_at = taskData.createdAt || new Date().toISOString();
 
     const client = getScopedClient(req);
@@ -159,6 +160,9 @@ router.put('/:id', requireAuth, async (req, res) => {
       .single();
 
     if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Task not found or unauthorized' });
+      }
       return res.status(500).json({ error: error.message });
     }
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -146,7 +147,7 @@ router.get('/status', async (req, res) => {
  * POST /api/ai/chat
  * Interactive chat with Gemini AI Copilot
  */
-router.post('/chat', async (req, res) => {
+router.post('/chat', requireAuth, async (req, res) => {
   try {
     const { message, history = [], context = {}, mode = 'learning', model: requestedModel } = req.body;
 
@@ -203,7 +204,7 @@ router.post('/chat', async (req, res) => {
  * POST /api/ai/chat-stream
  * Server-Sent Events (SSE) streaming chat endpoint for sub-second TTFT
  */
-router.post('/chat-stream', async (req, res) => {
+router.post('/chat-stream', requireAuth, async (req, res) => {
   try {
     const { message, history = [], context = {}, mode = 'learning', model: requestedModel } = req.body;
 
@@ -353,7 +354,7 @@ router.post('/chat-stream', async (req, res) => {
  * POST /api/ai/evaluate-answer
  * Evaluates user's answer to a practice challenge
  */
-router.post('/evaluate-answer', async (req, res) => {
+router.post('/evaluate-answer', requireAuth, async (req, res) => {
   try {
     const { question, userAnswer, context = {}, model: requestedModel } = req.body;
 
@@ -434,7 +435,7 @@ Rules:
  * POST /api/ai/summarize-project
  * Generate overall data project synthesis and curriculum breakdown
  */
-router.post('/summarize-project', async (req, res) => {
+router.post('/summarize-project', requireAuth, async (req, res) => {
   try {
     const { focusArea, detailed = true } = req.body || {};
 
@@ -480,7 +481,7 @@ Format with clear headers, bullet points, and high readability.${focusArea ? ` P
  * POST /api/ai/generate-roadmap
  * Generate a structured topic tree for any skill
  */
-router.post('/generate-roadmap', async (req, res) => {
+router.post('/generate-roadmap', requireAuth, async (req, res) => {
   try {
     const { skillName, weeks = 4 } = req.body;
     if (!skillName) {

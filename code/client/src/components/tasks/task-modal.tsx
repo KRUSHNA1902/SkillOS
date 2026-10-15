@@ -36,6 +36,7 @@ interface TaskModalProps {
   onClose: () => void;
   onSave: (taskData: Omit<WorkflowTask, "id" | "createdAt"> & { id?: string }) => void;
   initialTask?: WorkflowTask | null;
+  initialTitle?: string;
 }
 
 const CATEGORY_PRESETS = [
@@ -63,14 +64,22 @@ export function TaskModal({
   onClose,
   onSave,
   initialTask,
+  initialTitle,
 }: TaskModalProps) {
   const isEditing = Boolean(initialTask);
   const { projects } = useProjects();
 
-  const [title, setTitle] = useState("");
+  const getDefaultDeadline = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(17, 0, 0, 0);
+    return d.toISOString().slice(0, 16);
+  };
+
+  const [title, setTitle] = useState(initialTitle || "");
   const [category, setCategory] = useState("Frontend UI");
   const [priority, setPriority] = useState<TaskPriority>("high");
-  const [deadline, setDeadline] = useState("2026-10-14T17:00");
+  const [deadline, setDeadline] = useState(getDefaultDeadline);
   const [timelineStage, setTimelineStage] = useState<TaskTimelineStage>("in_progress");
   const [notes, setNotes] = useState("");
   const [reminderAlert, setReminderAlert] = useState(true);
@@ -95,10 +104,10 @@ export function TaskModal({
           : [initialTask.category || "General"]
       );
     } else {
-      setTitle("");
+      setTitle(initialTitle || "");
       setCategory("Frontend UI");
       setPriority("high");
-      setDeadline("2026-10-14T17:00");
+      setDeadline(getDefaultDeadline());
       setTimelineStage("in_progress");
       setNotes("");
       setReminderAlert(true);
@@ -106,7 +115,7 @@ export function TaskModal({
       setProjectId(undefined);
       setTags(["Frontend UI"]);
     }
-  }, [initialTask, isOpen]);
+  }, [initialTask, initialTitle, isOpen]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -192,7 +201,7 @@ export function TaskModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="task-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden"
         >
           {/* Backdrop */}
           <motion.div
@@ -209,10 +218,10 @@ export function TaskModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 shadow-2xl shadow-black/10 dark:shadow-black/90 z-10 space-y-5 text-foreground"
+            className="relative flex flex-col w-full max-w-xl max-h-[85vh] rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/10 dark:shadow-black/90 z-10 text-foreground overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border/50 pb-4">
+            <div className="flex items-center justify-between border-b border-border/50 px-6 py-4.5 shrink-0 bg-card/90 backdrop-blur-xs">
               <div>
                 <h2
                   id="task-modal-title"
@@ -230,14 +239,16 @@ export function TaskModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close dialog"
-                className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
               >
                 <X className="size-4" />
               </button>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin">
               {/* Task Title */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
@@ -600,8 +611,10 @@ export function TaskModal({
                 />
               </div>
 
+              </div>
+
               {/* Actions Footer */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/50">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-3.5 border-t border-border/50 shrink-0 bg-card/90 backdrop-blur-xs">
                 <button
                   type="button"
                   onClick={onClose}

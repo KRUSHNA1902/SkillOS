@@ -9,8 +9,16 @@ import { setAuthCookies, clearAuthCookies } from '../utils/cookies.js';
  * 4. If refresh fails or neither token exists -> clears cookies and returns 401.
  */
 export const requireAuth = async (req, res, next) => {
-  const accessToken = req.cookies.access_token;
-  const refreshToken = req.cookies.refresh_token;
+  const accessToken = req.cookies?.access_token || req.headers?.authorization?.replace('Bearer ', '');
+  const refreshToken = req.cookies?.refresh_token;
+
+  // Development bypass check for local development
+  if (process.env.NODE_ENV !== 'production') {
+    if (req.headers['x-dev-user'] === 'dev-user-001' || req.cookies?.dev_user === 'dev-user-001') {
+      req.user = { id: 'dev-user-001', email: 'developer@skillos.local', role: 'Developer' };
+      return next();
+    }
+  }
 
   // 1. Check existing access token
   if (accessToken) {

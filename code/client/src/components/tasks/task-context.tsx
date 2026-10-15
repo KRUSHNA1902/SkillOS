@@ -291,8 +291,11 @@ export function TaskManagerProvider({
             setSyncStatus("synced");
           } else {
             // If remote database is empty but user has local tasks, push local to remote
-            const localSaved = localStorage.getItem(storageKey);
-            const currentTasks = localSaved ? JSON.parse(localSaved) : tasks;
+            let currentTasks: WorkflowTask[] = [];
+            try {
+              const localSaved = localStorage.getItem(storageKey);
+              if (localSaved) currentTasks = JSON.parse(localSaved);
+            } catch {}
             if (Array.isArray(currentTasks) && currentTasks.length > 0) {
               // Background batch seed to Supabase
               for (const t of currentTasks) {
@@ -314,7 +317,7 @@ export function TaskManagerProvider({
       console.warn("[TaskManager] Failed to reach /api/tasks:", err);
       setSyncStatus("offline_cached");
     }
-  }, [isDevUser, user, storageKey, tasks]);
+  }, [isDevUser, user?.id, storageKey]);
 
   // Trigger initial cloud fetch on user login/auth change
   useEffect(() => {
@@ -462,9 +465,13 @@ export function TaskManagerProvider({
   const addTask = (
     taskData: Omit<WorkflowTask, "id" | "createdAt"> & { id?: string }
   ): WorkflowTask => {
+    const generatedId = typeof crypto !== "undefined" && crypto.randomUUID
+      ? `task-${crypto.randomUUID()}`
+      : `task-${user?.id ? user.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) : "guest"}-${Date.now()}`;
+
     const newTask: WorkflowTask = {
       ...taskData,
-      id: taskData.id || `task-${Date.now()}`,
+      id: taskData.id || generatedId,
       tags:
         taskData.tags && taskData.tags.length > 0
           ? taskData.tags
@@ -616,11 +623,15 @@ export function TaskManagerProvider({
 
   // Reset to default seed
   const resetDefaultTasks = () => {
-    setTasks(initialTasksSeed);
+    const userSeedTasks = initialTasksSeed.map((t) => ({
+      ...t,
+      id: isDevUser ? t.id : `task-${user?.id ? user.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) : "guest"}-${t.id}`,
+    }));
+    setTasks(userSeedTasks);
     setDismissedAlertIds([]);
     if (!isDevUser && user) {
       // Seed to cloud DB
-      for (const t of initialTasksSeed) {
+      for (const t of userSeedTasks) {
         fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

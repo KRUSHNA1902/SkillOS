@@ -33,6 +33,7 @@ import {
   Bot,
   Terminal,
   Code,
+  ListTodo,
 } from "lucide-react";
 
 interface ProfileSettingsDialogProps {
@@ -66,7 +67,8 @@ export function ProfileSettingsDialog({
 }: ProfileSettingsDialogProps) {
   const { user, updateUser, logout } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { startTour, openWizard } = useOnboarding();
+  const { startTour, openWizard, restoreChecklist, state: onboardingState } =
+    useOnboarding();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -877,6 +879,19 @@ export function ProfileSettingsDialog({
                 <Sliders className="size-3.5" />
                 <span>Relaunch Onboarding Setup</span>
               </button>
+              {onboardingState.checklistDismissed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    restoreChecklist();
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                >
+                  <ListTodo className="size-3.5 text-amber-400" />
+                  <span>Restore Getting Started Checklist</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1192,7 +1207,7 @@ export function ProfileSettingsDialog({
           </aside>
 
           {/* Right Main Content Panel */}
-          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-8 lg:p-12">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 w-full max-w-full bg-background p-4 sm:p-8 lg:p-12">
             <div className="max-w-4xl mx-auto space-y-6 pb-16">
               {/* Active Tab Heading */}
               <div className="border-b border-border/60 pb-4">
@@ -1213,33 +1228,6 @@ export function ProfileSettingsDialog({
 
               {/* Render Selected Tab Form */}
               {renderTabContent(true)}
-
-              {/* Sticky / Bottom save button in canvas */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/40">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isSaving}
-                  className="rounded-xl border border-border/80 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
-                >
-                  {isSaving ? (
-                    <span>Saving...</span>
-                  ) : (
-                    <>
-                      <Check className="size-3.5" />
-                      <span>Save Changes</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           </main>
         </div>

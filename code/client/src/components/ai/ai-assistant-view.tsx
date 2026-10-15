@@ -39,6 +39,7 @@ import { ChatMessageItem, ChatMessage } from "./chat-message-item";
 import { ChatComposer } from "./chat-composer";
 import { BounceDots } from "@/components/ui/bounce-dots";
 import { useNotes } from "@/components/notes/note-context";
+import { useOnboarding } from "@/context/OnboardingContext";
 import { NoteTrack } from "@/components/notes/note-types";
 
 interface AIAssistantViewProps {
@@ -142,6 +143,12 @@ Powered by 8 relational tables:
 
 export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: AIAssistantViewProps) {
   const { addNote } = useNotes();
+  const { updateChecklist } = useOnboarding();
+
+  useEffect(() => {
+    updateChecklist("aiAssistantExplored", true);
+  }, [updateChecklist]);
+
   const [tab, setTab] = useState<"chat" | "summary" | "roadmap">(initialTab);
   const [status, setStatus] = useState<{ configured: boolean; model?: string; message: string }>({
     configured: true,
@@ -395,7 +402,7 @@ export function AIAssistantView({ userName = "Learner", initialTab = "chat" }: A
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 bg-background text-foreground overflow-hidden selection:bg-primary/20">
+    <div className="flex-1 flex flex-col h-full min-h-0 w-full max-w-full overflow-hidden overflow-x-hidden bg-background text-foreground selection:bg-primary/20">
       {/* Top Banner / AI Header */}
       <div className="shrink-0 border-b border-border/60 bg-background/80 px-4 sm:px-6 py-3 backdrop-blur-md z-10">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between max-w-7xl mx-auto w-full">

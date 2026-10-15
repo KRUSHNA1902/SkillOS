@@ -141,8 +141,9 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
         return existing;
       }
 
+      const tagUid = user?.id ? user.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) : "guest";
       const newTag: Tag = {
-        id: `tag-${Date.now()}-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+        id: `tag-${tagUid}-${Date.now()}-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
         name: cleanName,
         color,
         description: description.trim(),

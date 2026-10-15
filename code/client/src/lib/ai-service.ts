@@ -7,6 +7,14 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const CLIENT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
+const getAIHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (typeof window !== 'undefined' && localStorage.getItem('skillos_dev_user')) {
+    headers['x-dev-user'] = 'dev-user-001';
+  }
+  return headers;
+};
+
 export type AIMode = 'learning' | 'planning' | 'notes';
 
 export interface AIChatMessage {
@@ -246,8 +254,9 @@ export async function streamAIChat(
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/chat-stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAIHeaders(),
       body: JSON.stringify({ message, history, context, mode, model }),
+      credentials: 'include',
       signal
     });
 
@@ -431,8 +440,9 @@ export async function sendAIChat(
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAIHeaders(),
       body: JSON.stringify({ message, history, context, mode, model }),
+      credentials: 'include',
       signal
     });
 
@@ -483,8 +493,9 @@ export async function evaluateUserAnswer(
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/evaluate-answer`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, userAnswer, context })
+      headers: getAIHeaders(),
+      body: JSON.stringify({ question, userAnswer, context }),
+      credentials: 'include'
     });
 
     if (res.ok) {
@@ -572,8 +583,9 @@ export async function summarizeDataProject(focusArea?: string): Promise<AIProjec
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/summarize-project`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ focusArea, detailed: true })
+      headers: getAIHeaders(),
+      body: JSON.stringify({ focusArea, detailed: true }),
+      credentials: 'include'
     });
 
     if (res.ok) {
@@ -608,8 +620,9 @@ export async function generateAIRoadmap(skillName: string, weeks: number = 4): P
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/generate-roadmap`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skillName, weeks })
+      headers: getAIHeaders(),
+      body: JSON.stringify({ skillName, weeks }),
+      credentials: 'include'
     });
 
     if (res.ok) {

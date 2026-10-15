@@ -16,7 +16,6 @@ import {
   GitCommit,
   Rocket,
   Flame,
-  Trash2,
   ListTodo,
   FileText,
   ChevronRight,
@@ -87,7 +86,7 @@ export interface DashboardViewProps {
   userEmail?: string;
   isDevUser?: boolean;
   onOpenAI?: () => void;
-  onOpenTasks?: () => void;
+  onOpenTasks?: (options?: { openCreateModal?: boolean; initialTitle?: string }) => void;
   onOpenNotes?: () => void;
   onOpenProjects?: () => void;
 }
@@ -105,7 +104,6 @@ export function DashboardView({
     tasks,
     metrics,
     addTask,
-    deleteTask,
     toggleTaskStatus,
     activeAlerts,
   } = useTaskManager();
@@ -179,21 +177,33 @@ export function DashboardView({
     toggleTaskStatus(id);
   };
 
-  // Quick add task
-  const handleAddTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskInput.trim()) return;
-    addTask({
-      title: newTaskInput.trim(),
-      status: "in_progress",
-      priority: "high",
-      category: "Workflow",
-      dueDate: "Today, 6:00 PM",
-      deadline: "2026-10-13T18:00",
-      timelineStage: "in_progress",
-      reminderAlert: true,
-    });
-    setNewTaskInput("");
+  // Add task -> Redirects to Task section with Create Task modal
+  const handleAddTask = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const title = newTaskInput.trim();
+    if (onOpenTasks) {
+      onOpenTasks({ openCreateModal: true, initialTitle: title });
+      setNewTaskInput("");
+    } else {
+      if (!title) return;
+      const now = new Date();
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      addTask({
+        title,
+        status: "in_progress",
+        priority: "high",
+        category: "Workflow",
+        dueDate: "Tomorrow, 6:00 PM",
+        deadline: tomorrow.toISOString(),
+        timelineStage: "in_progress",
+        notes: "",
+        reminderAlert: true,
+      });
+      setNewTaskInput("");
+      if (filter !== "all" && filter !== "in_progress") {
+        setFilter("all");
+      }
+    }
   };
 
   // Quick add note to shared Knowledge Notes store
@@ -218,7 +228,7 @@ export function DashboardView({
   });
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+    <div className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden min-w-0 max-w-full p-4 sm:p-6 lg:p-8">
       {/* Top Banner Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -242,7 +252,7 @@ export function DashboardView({
           {activeAlerts.length > 0 && onOpenTasks && (
             <button
               type="button"
-              onClick={onOpenTasks}
+              onClick={() => onOpenTasks()}
               title="View deadline alerts in Tasks workspace"
               className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 backdrop-blur-sm hover:bg-rose-500/25 transition-colors cursor-pointer"
             >
@@ -250,14 +260,10 @@ export function DashboardView({
               <span>{activeAlerts.length} Deadline Alert{activeAlerts.length > 1 ? "s" : ""}</span>
             </button>
           )}
-          <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
-            <Clock className="size-3.5 text-emerald-400" />
-            <span>Sprint 4 • Day 6 of 14</span>
-          </div>
           {onOpenTasks && (
             <button
               type="button"
-              onClick={onOpenTasks}
+              onClick={() => onOpenTasks()}
               className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted cursor-pointer"
             >
               <ListTodo className="size-3.5 text-primary" />
@@ -307,7 +313,7 @@ export function DashboardView({
       />
 
       {/* 4 Core Workflow Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="metrics-bar">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-w-0 max-w-full" data-tour="metrics-bar">
         {/* 1. Current / In Progress Tasks */}
         <motion.div
           whileHover={{ y: -3 }}
@@ -481,9 +487,9 @@ export function DashboardView({
       </AnimatePresence>
 
       {/* Main Grid: Left (Current Tasks & Notes) + Right (Latest Updates & Progress) */}
-      <div className="grid gap-6 lg:grid-cols-7">
+      <div className="grid gap-6 lg:grid-cols-7 min-w-0 max-w-full">
         {/* Left Column (4 cols) */}
-        <div className="space-y-6 lg:col-span-4">
+        <div className="space-y-6 lg:col-span-4 min-w-0 max-w-full">
           {/* SECTION 1: Current Tasks & Workflow Board */}
           <Card className="border-border bg-card/60 backdrop-blur-sm" data-tour="task-engine">
             <CardHeader className="pb-3">
@@ -496,13 +502,13 @@ export function DashboardView({
                     </span>
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Interactive task manager • Click checkbox to complete • Delete or view notes
+                    Interactive task manager • Click checkbox to complete • Click task to view notes
                   </CardDescription>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Filter Tabs */}
-                  <div className="flex items-center gap-1 rounded-xl bg-muted/70 p-1 text-[11px]">
+                  <div className="flex items-center gap-1 rounded-xl bg-muted/70 p-1 text-[11px] max-w-full overflow-x-auto scrollbar-none">
                     <button
                       type="button"
                       onClick={() => setFilter("all")}
@@ -558,11 +564,12 @@ export function DashboardView({
                   value={newTaskInput}
                   onChange={(e) => setNewTaskInput(e.target.value)}
                   placeholder="Add a new task (e.g. Write integration test for webhook)..."
-                  className="flex-1 rounded-xl border border-border/80 bg-background/80 px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 min-w-0 rounded-xl border border-border/80 bg-background/80 px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <button
                   type="submit"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 cursor-pointer"
+                  onClick={handleAddTask}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 cursor-pointer active:scale-95 transition-all"
                 >
                   <Plus className="size-3.5" />
                   <span>Add</span>
@@ -580,7 +587,7 @@ export function DashboardView({
                     {onOpenTasks && (
                       <button
                         type="button"
-                        onClick={onOpenTasks}
+                        onClick={() => onOpenTasks()}
                         className="inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer font-medium"
                       >
                         Open Task Operations &rarr;
@@ -602,14 +609,17 @@ export function DashboardView({
                     return (
                       <div
                         key={task.id}
-                        className="group flex flex-col gap-1.5 py-3 transition-colors hover:bg-muted/30 -mx-2 px-2 rounded-xl"
+                        className="group flex flex-col gap-1.5 py-3 transition-colors hover:bg-muted/30 sm:-mx-2 sm:px-2 mx-0 px-1 rounded-xl"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0 flex-1">
                             {/* Interactive Checkbox */}
                             <button
                               type="button"
-                              onClick={() => toggleTask(task.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTask(task.id);
+                              }}
                               aria-label={isDone ? "Mark as in progress" : "Mark as completed"}
                               className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-lg border transition-all cursor-pointer ${
                                 isDone
@@ -620,16 +630,51 @@ export function DashboardView({
                               {isDone && <Check className="size-3 stroke-[3]" />}
                             </button>
 
-                            <div className="min-w-0 space-y-1 flex-1">
-                              <p
-                                className={`text-xs font-medium leading-snug transition-all ${
-                                  isDone
-                                    ? "line-through text-muted-foreground/60"
-                                    : "text-foreground"
-                                }`}
-                              >
-                                {task.title}
-                              </p>
+                            {/* Clickable Task Content - toggles notes preview directly */}
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() =>
+                                setExpandedNotesId(
+                                  isNotesExpanded ? null : task.id
+                                )
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setExpandedNotesId(
+                                    isNotesExpanded ? null : task.id
+                                  );
+                                }
+                              }}
+                              className="min-w-0 space-y-1 flex-1 cursor-pointer select-none group/title text-left"
+                              title="Click task to view notes & requirements"
+                            >
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p
+                                  className={`text-xs font-medium leading-snug transition-colors group-hover/title:text-primary group-hover/title:underline ${
+                                    isDone
+                                      ? "line-through text-muted-foreground/60"
+                                      : isNotesExpanded
+                                      ? "text-primary font-semibold"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {task.title}
+                                </p>
+                                {task.notes && (
+                                  <span
+                                    className={`inline-flex items-center gap-0.5 text-[10px] transition-colors ${
+                                      isNotesExpanded
+                                        ? "text-primary font-medium"
+                                        : "text-muted-foreground/60 group-hover/title:text-primary"
+                                    }`}
+                                  >
+                                    <FileText className="size-2.5" />
+                                    <span className="text-[9px]">Notes</span>
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
                                 <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-muted-foreground">
                                   {task.category}
@@ -665,37 +710,8 @@ export function DashboardView({
                             </div>
                           </div>
 
-                          {/* Status Badge & Actions */}
+                          {/* Status Badge */}
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {task.notes && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedNotesId(
-                                    isNotesExpanded ? null : task.id
-                                  )
-                                }
-                                title="Toggle notes preview"
-                                className={`grid size-6 place-items-center rounded-md transition-colors cursor-pointer ${
-                                  isNotesExpanded
-                                    ? "bg-primary/20 text-primary"
-                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                }`}
-                              >
-                                <FileText className="size-3" />
-                              </button>
-                            )}
-
-                            {/* Delete Task Button */}
-                            <button
-                              type="button"
-                              onClick={() => deleteTask(task.id)}
-                              title="Delete task"
-                              className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/20 hover:text-rose-400 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="size-3" />
-                            </button>
-
                             {task.status === "in_progress" && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20">
                                 <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -716,12 +732,18 @@ export function DashboardView({
                         </div>
 
                         {/* Inline Notes Preview */}
-                        {isNotesExpanded && task.notes && (
+                        {isNotesExpanded && (
                           <div className="mt-1 ml-8 rounded-lg border border-border/60 bg-background/70 p-2.5 text-[11px] text-muted-foreground leading-relaxed font-mono">
-                            <span className="text-[10px] font-sans font-semibold text-foreground block mb-0.5">
-                              Task Notes & Requirements:
-                            </span>
-                            {task.notes}
+                            <div className="flex items-center justify-between gap-2 mb-1 font-sans">
+                              <span className="text-[10px] font-semibold text-foreground flex items-center gap-1">
+                                <FileText className="size-3 text-primary" />
+                                Task Notes & Requirements:
+                              </span>
+                              <span className="text-[9px] text-muted-foreground">Click task title to close</span>
+                            </div>
+                            <div className="font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-words break-all">
+                              {task.notes?.trim() || "No detailed notes provided for this task."}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -821,7 +843,7 @@ export function DashboardView({
         </div>
 
         {/* Right Column (3 cols): Projects, Latest Updates & Workflow Breakdown */}
-        <div className="space-y-6 lg:col-span-3">
+        <div className="space-y-6 lg:col-span-3 min-w-0 max-w-full">
           {/* SECTION 2.5: Active Portfolio Projects */}
           <Card className="border-border bg-card/60 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -917,7 +939,7 @@ export function DashboardView({
                   return (
                     <div
                       key={item.id}
-                      className="flex items-start justify-between gap-3 py-3 transition-colors hover:bg-muted/30 -mx-2 px-2 rounded-xl"
+                      className="flex items-start justify-between gap-3 py-3 transition-colors hover:bg-muted/30 sm:-mx-2 sm:px-2 mx-0 px-1 rounded-xl"
                     >
                       <div className="flex items-start gap-2.5 min-w-0">
                         <div className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg ${badgeColor}`}>

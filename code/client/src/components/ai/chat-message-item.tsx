@@ -454,7 +454,7 @@ export function ChatMessageItem({
       {isUser ? (
         <div className="flex items-start gap-3 max-w-[85%] sm:max-w-[75%]">
           <div className="rounded-3xl rounded-tr-md bg-muted/70 border border-border/80 px-5 py-3.5 text-foreground shadow-sm dark:bg-[#1c1c1f] dark:border-white/10 dark:text-neutral-100">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed font-normal">
+            <p className="whitespace-pre-wrap break-words break-all text-sm leading-relaxed font-normal">
               {message.text}
             </p>
             <div className="mt-1 text-right text-[10px] text-muted-foreground font-mono">

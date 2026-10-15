@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ListTodo,
@@ -58,9 +58,17 @@ const SORT_OPTIONS = [
 
 interface TasksViewProps {
   onNavigateToAI?: () => void;
+  initialCreateOpen?: boolean;
+  initialTaskTitle?: string;
+  onClearInitialCreate?: () => void;
 }
 
-export function TasksView({ onNavigateToAI }: TasksViewProps) {
+export function TasksView({
+  onNavigateToAI,
+  initialCreateOpen = false,
+  initialTaskTitle = "",
+  onClearInitialCreate,
+}: TasksViewProps) {
   const {
     tasks,
     metrics,
@@ -73,7 +81,6 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
     toggleTaskStatus,
     setTaskPriority,
     toggleReminderAlert,
-    loadStarterTemplates,
   } = useTaskManager();
   const { getTagClass, openTagManager } = useTags();
 
@@ -103,10 +110,22 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
   const [quickTitle, setQuickTitle] = useState("");
 
   // Modals & Drawers
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(initialCreateOpen);
+  const [modalInitialTitle, setModalInitialTitle] = useState(initialTaskTitle);
   const [editingTask, setEditingTask] = useState<WorkflowTask | null>(null);
   const [isCleanupDialogOpen, setIsCleanupDialogOpen] = useState(false);
   const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialCreateOpen) {
+      setIsModalOpen(true);
+      setEditingTask(null);
+      if (initialTaskTitle) {
+        setModalInitialTitle(initialTaskTitle);
+      }
+      onClearInitialCreate?.();
+    }
+  }, [initialCreateOpen, initialTaskTitle, onClearInitialCreate]);
 
   // Notification feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -121,13 +140,17 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
     e.preventDefault();
     if (!quickTitle.trim()) return;
 
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const deadlineIso = tomorrow.toISOString();
+
     addTask({
       title: quickTitle.trim(),
       category: "Workflow",
       priority: "high",
       status: "in_progress",
-      dueDate: "Today, 6:00 PM",
-      deadline: "2026-10-13T18:00",
+      dueDate: "Tomorrow, 6:00 PM",
+      deadline: deadlineIso,
       timelineStage: "in_progress",
       notes: "",
       reminderAlert: true,
@@ -154,6 +177,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
   // Open Create Modal
   const handleOpenCreate = () => {
     setEditingTask(null);
+    setModalInitialTitle("");
     setIsModalOpen(true);
   };
 
@@ -242,7 +266,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+    <div className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden min-w-0 max-w-full p-4 sm:p-6 lg:p-8">
       {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
@@ -316,15 +340,6 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={syncWithCloud}
-            title="Sync with cloud database"
-            className="grid size-8 place-items-center rounded-xl border border-border/80 bg-card text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors shadow-xs"
-          >
-            <RefreshCw className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin text-primary" : ""}`} />
-          </button>
-
           {onNavigateToAI && (
             <button
               type="button"
@@ -354,7 +369,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
       <TaskAlertsBanner />
 
       {/* 4 Operations Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-w-0 max-w-full">
         {/* Metric 1: In Progress */}
         <Card className="border-border/80 bg-card shadow-xs">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -468,7 +483,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
           </div>
 
           {/* Search box */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 w-full sm:max-w-md min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input
               type="text"
@@ -480,7 +495,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
           </div>
 
           {/* Sort By Dropdown with 21st.dev DropdownMenu */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-muted-foreground whitespace-nowrap hidden lg:inline">
               Sort by:
             </span>
@@ -531,7 +546,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
         {/* Filter Pills */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60 text-xs">
           {/* Status Filter */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <span className="text-[11px] text-muted-foreground mr-1">Status:</span>
             {(
               [
@@ -562,7 +577,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
           <div className="h-3 w-px bg-border/60 mx-1 hidden sm:block" />
 
           {/* Priority Filter */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <span className="text-[11px] text-muted-foreground mr-1">Priority:</span>
             {(
               [
@@ -590,7 +605,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
         </div>
 
         {/* Tag Filter Row */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-border/60 text-xs scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full max-w-full min-w-0 pt-2 border-t border-border/60 text-xs scrollbar-none">
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
             <Tag className="size-3 text-muted-foreground" />
             <span>Filter by Tag:</span>
@@ -677,14 +692,15 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
                 value={quickTitle}
                 onChange={(e) => setQuickTitle(e.target.value)}
                 placeholder="Quick add a new task (e.g. Set up JWT refresh rotation)..."
-                className="flex-1 rounded-xl border border-border/80 bg-background px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex-1 min-w-0 rounded-xl border border-border/80 bg-background px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <button
                 type="submit"
                 className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 cursor-pointer"
               >
                 <Plus className="size-3.5" />
-                <span>Quick Add</span>
+                <span className="hidden sm:inline">Quick Add</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </form>
           </CardHeader>
@@ -712,17 +728,6 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
                     >
                       <Plus className="size-3.5" />
                       <span>Create Your First Task</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        loadStarterTemplates();
-                        showToast("Loaded 5 starter workflow tasks");
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-background hover:bg-muted/60 px-4 py-2 text-xs font-semibold text-foreground active:scale-95 transition cursor-pointer"
-                    >
-                      <Sparkles className="size-3.5 text-amber-500" />
-                      <span>Load Starter Templates (5 Tasks)</span>
                     </button>
                   </div>
                 </div>
@@ -788,7 +793,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
                             {/* Title & tags */}
                             <div className="flex items-center gap-2 flex-wrap">
                               <p
-                                className={`text-xs font-semibold leading-snug transition-all ${
+                                className={`text-xs font-semibold leading-snug transition-all break-words ${
                                   isDone
                                     ? "line-through text-muted-foreground"
                                     : "text-foreground"
@@ -964,7 +969,7 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
                                 Edit Notes
                               </button>
                             </div>
-                            <p className="whitespace-pre-wrap">{task.notes}</p>
+                            <p className="whitespace-pre-wrap break-words break-all">{task.notes}</p>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -983,9 +988,11 @@ export function TasksView({ onNavigateToAI }: TasksViewProps) {
         onClose={() => {
           setIsModalOpen(false);
           setEditingTask(null);
+          setModalInitialTitle("");
         }}
         onSave={handleSaveModal}
         initialTask={editingTask}
+        initialTitle={modalInitialTitle}
       />
 
       {/* Cleanup Old Tasks Confirmation Dialog */}

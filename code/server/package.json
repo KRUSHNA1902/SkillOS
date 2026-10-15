@@ -1,12 +1,13 @@
 {
   "name": "skillos-server",
-  "version": "1.0.0",
+  "version": "19.2.4",
   "description": "SkillOS Node.js + Express backend",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "NODE_ENV=test node test/security-isolation.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

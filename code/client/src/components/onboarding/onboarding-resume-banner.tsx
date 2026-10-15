@@ -14,7 +14,22 @@ const STEP_TITLES: Record<number, string> = {
 export function OnboardingResumeBanner() {
   const { state, openWizard } = useOnboarding();
   const { status, currentStep, isWizardOpen } = state;
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem("skillos_resume_banner_dismissed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    try {
+      sessionStorage.setItem("skillos_resume_banner_dismissed", "true");
+    } catch {
+      // ignore
+    }
+  };
 
   // Only display if onboarding was started/paused and wizard is currently closed
   if (status !== "in_progress" || isWizardOpen || isDismissed) {
@@ -64,7 +79,7 @@ export function OnboardingResumeBanner() {
             </button>
             <button
               type="button"
-              onClick={() => setIsDismissed(true)}
+              onClick={handleDismiss}
               title="Dismiss banner"
               className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors cursor-pointer"
             >

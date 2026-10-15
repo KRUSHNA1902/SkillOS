@@ -66,6 +66,7 @@ router.get('/', async (req, res) => {
     const { data, error } = await client
       .from('skillos_tags')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -151,12 +152,16 @@ router.put('/:id', async (req, res) => {
       .from('skillos_tags')
       .update(rowUpdates)
       .eq('id', id)
+      .eq('user_id', userId)
       .select()
       .single();
 
     if (error) {
       if (error.code === '42P01') {
         return res.json({ id, ...updates, cachedOffline: true });
+      }
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Tag not found or unauthorized' });
       }
       return res.status(500).json({ error: 'Failed to update tag', details: error.message });
     }
@@ -185,7 +190,8 @@ router.delete('/:id', async (req, res) => {
     const { error } = await client
       .from('skillos_tags')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) {
       if (error.code === '42P01') {

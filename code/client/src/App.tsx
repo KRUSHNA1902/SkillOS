@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import SignIn1 from "@/components/ui/modern-stunning-sign-in";
 import {
@@ -38,6 +38,7 @@ import { ProfileSettingsDialog } from "@/components/profile/profile-settings-dia
 import { UserAvatarIcon } from "@/components/profile/user-avatar-icon";
 import { SearchView } from "@/components/search/search-view";
 import { CommandPaletteModal } from "@/components/search/command-palette-modal";
+import { APP_VERSION } from "@/version";
 import { useTheme } from "@/context/ThemeContext";
 import { OnboardingProvider, useOnboarding } from "@/context/OnboardingContext";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
@@ -232,6 +233,54 @@ const navigationItems = [
   },
 ];
 
+const TAB_TO_HASH: Record<string, string> = {
+  "Dashboard": "dashboard",
+  "Tasks": "tasks",
+  "Notes": "notes",
+  "Projects": "projects",
+  "All Projects": "projects-all",
+  "In Progress": "projects-in-progress",
+  "Completed": "projects-completed",
+  "AI Assistant": "ai-assistant",
+  "Inbox": "inbox",
+  "Search": "search",
+  "Workspaces": "workspaces",
+  "Skill Projects": "skill-projects",
+  "Shared Resources": "shared-resources",
+  "Workflows": "workflows",
+  "Automations": "automations",
+  "Active Runs": "active-runs",
+  "Templates": "templates",
+};
+
+const HASH_TO_TAB: Record<string, string> = Object.entries(TAB_TO_HASH).reduce(
+  (acc, [tab, hash]) => {
+    acc[hash] = tab;
+    return acc;
+  },
+  {} as Record<string, string>
+);
+
+const getInitialActiveTab = (): string => {
+  if (typeof window !== "undefined") {
+    // 1. Try URL hash first e.g. #tasks, #notes
+    const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+    if (hash && HASH_TO_TAB[hash]) {
+      return HASH_TO_TAB[hash];
+    }
+    // 2. Try stored workspace
+    try {
+      const stored = localStorage.getItem("skillos_active_workspace");
+      if (stored && TAB_TO_HASH[stored]) {
+        return stored;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return "Dashboard";
+};
+
 function SidebarLogoToggle() {
   const { open, state, toggleSidebar } = useAnimatedSidebar();
   const isCollapsed = state === "collapsed" || !open;
@@ -254,10 +303,67 @@ function SidebarLogoToggle() {
 
 function App() {
   const { user, loading, logout } = useAuth();
-  const [active, setActive] = useState("Dashboard");
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [active, setActiveState] = useState<string>(getInitialActiveTab);
+  const [openSection, setOpenSection] = useState<string | null>(() => {
+    const initial = getInitialActiveTab();
+    if (["All Projects", "In Progress", "Completed"].includes(initial)) {
+      return "Projects";
+    }
+    if (["Skill Projects", "Shared Resources"].includes(initial)) {
+      return "Workspaces";
+    }
+    if (["Automations", "Active Runs", "Templates"].includes(initial)) {
+      return "Workflows";
+    }
+    return null;
+  });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [openTaskCreate, setOpenTaskCreate] = useState(false);
+  const [taskDraftTitle, setTaskDraftTitle] = useState("");
+
+  const setActive = useCallback((tab: string) => {
+    setActiveState(tab);
+    try {
+      localStorage.setItem("skillos_active_workspace", tab);
+    } catch {
+      // ignore
+    }
+    const hashSlug = TAB_TO_HASH[tab];
+    if (hashSlug && typeof window !== "undefined") {
+      const targetHash = `#${hashSlug}`;
+      if (window.location.hash !== targetHash) {
+        window.history.replaceState(null, "", targetHash);
+      }
+    }
+  }, []);
+
+  // Sync hash on initial load if absent
+  useEffect(() => {
+    const slug = TAB_TO_HASH[active];
+    if (slug && !window.location.hash) {
+      window.history.replaceState(null, "", `#${slug}`);
+    }
+  }, [active]);
+
+  // Listen to browser navigation (back/forward or manual hash change)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+      if (hash && HASH_TO_TAB[hash]) {
+        const targetTab = HASH_TO_TAB[hash];
+        setActiveState(targetTab);
+        try {
+          localStorage.setItem("skillos_active_workspace", targetTab);
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   // Global Cmd+K / Ctrl+K listener for Command Palette
   useEffect(() => {
@@ -302,8 +408,8 @@ function App() {
         <NotesProvider key={`notes-${user.id}`}>
           <InboxProvider key={`inbox-${user.id}`}>
             <OnboardingProvider key={`onboarding-${user.id}`}>
-            <div className="h-screen w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
-        <AnimatedSidebarProvider className="h-full w-full overflow-hidden">
+            <div className="h-screen w-full max-w-full bg-background text-foreground antialiased selection:bg-primary/20 overflow-hidden">
+        <AnimatedSidebarProvider className="h-full w-full max-w-full overflow-hidden">
         {/* Animated Desktop & Mobile Sidebar */}
         <AnimatedSidebar
           ariaLabel="SkillOS Workspace"
@@ -319,6 +425,9 @@ function App() {
                   <div className="flex items-center gap-1.5">
                     <span className="block truncate text-sm font-semibold tracking-tight text-foreground">
                       SkillOS
+                    </span>
+                    <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[9px] font-mono font-medium text-muted-foreground select-none">
+                      v{APP_VERSION}
                     </span>
                     {isDevUser && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-mono font-medium text-amber-300">
@@ -504,21 +613,21 @@ function App() {
         </AnimatedSidebar>
 
         {/* Inset Main Container */}
-        <AnimatedSidebarInset className="h-full min-h-0 flex flex-col overflow-hidden bg-background">
+        <AnimatedSidebarInset className="h-full w-full max-w-full min-w-0 flex flex-col overflow-hidden overflow-x-hidden bg-background">
           {/* Mobile-Only Navigation Header (Hidden on desktop, perfectly formatted on phones) */}
-          <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/40 bg-background/80 px-3 backdrop-blur-md md:hidden">
-            <div className="flex items-center gap-2.5">
-              <AnimatedSidebarTrigger className="size-8.5 rounded-lg border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground">
+          <div className="flex h-12 w-full max-w-full shrink-0 items-center justify-between border-b border-border/40 bg-background/80 px-3 backdrop-blur-md md:hidden overflow-hidden">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <AnimatedSidebarTrigger className="size-8.5 shrink-0 rounded-lg border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground">
                 <PanelLeft aria-hidden="true" className="size-4" />
               </AnimatedSidebarTrigger>
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5 text-xs truncate">
                 <span className="font-semibold text-foreground">SkillOS</span>
                 <span className="text-muted-foreground">/</span>
                 <span className="font-medium text-muted-foreground">{active}</span>
               </div>
             </div>
             {isDevUser && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-400">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-400">
                 <Zap className="size-2.5" />
                 Dev
               </span>
@@ -526,14 +635,22 @@ function App() {
           </div>
 
           {/* Inset Content Body */}
-          <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <main className="flex-1 flex flex-col min-h-0 w-full max-w-full min-w-0 overflow-hidden overflow-x-hidden">
             {active === "Dashboard" ? (
               <DashboardView
                 userName={capitalizedName}
                 userEmail={user.email}
                 isDevUser={isDevUser}
                 onOpenAI={() => setActive("AI Assistant")}
-                onOpenTasks={() => setActive("Tasks")}
+                onOpenTasks={(options) => {
+                  if (options?.openCreateModal) {
+                    setActive("Tasks");
+                    setOpenTaskCreate(true);
+                    setTaskDraftTitle(options.initialTitle || "");
+                  } else {
+                    setActive("Tasks");
+                  }
+                }}
                 onOpenNotes={() => setActive("Notes")}
                 onOpenProjects={() => setActive("Projects")}
               />
@@ -553,7 +670,15 @@ function App() {
                 }}
               />
             ) : active === "Tasks" ? (
-              <TasksView onNavigateToAI={() => setActive("AI Assistant")} />
+              <TasksView
+                onNavigateToAI={() => setActive("AI Assistant")}
+                initialCreateOpen={openTaskCreate}
+                initialTaskTitle={taskDraftTitle}
+                onClearInitialCreate={() => {
+                  setOpenTaskCreate(false);
+                  setTaskDraftTitle("");
+                }}
+              />
             ) : active === "Notes" ? (
               <NotesView onNavigateToAI={() => setActive("AI Assistant")} />
             ) : active === "Projects" || active === "All Projects" ? (

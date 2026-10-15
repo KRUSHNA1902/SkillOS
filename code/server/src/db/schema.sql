@@ -5,7 +5,7 @@
 -- ================================================================================
 
 CREATE TABLE IF NOT EXISTS public.skillos_tasks (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'pending', 'completed', 'blocked')),

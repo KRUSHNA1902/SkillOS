@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# SkillOS Git Pre-Commit Hook: Automatic Version Incrementor
+# Runs on each commit change to automatically bump and synchronize the version.
+#
+# Can be bypassed if needed with:
+#   SKIP_VERSION_BUMP=1 git commit -m "..."
+# Or bump minor/major explicitly with:
+#   BUMP=minor git commit -m "..."
+#   BUMP=major git commit -m "..."
+#
+
+# 1. Allow explicit skip
+if [ "$SKIP_VERSION_BUMP" = "1" ] || [ "$SKIP_VERSION_BUMP" = "true" ]; then
+  exit 0
+fi
+
+# 2. Skip during git rebase or merge operations
+GIT_DIR="$(git rev-parse --git-dir 2>/dev/null)"
+if [ -d "$GIT_DIR/rebase-merge" ] || [ -d "$GIT_DIR/rebase-apply" ] || [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+  exit 0
+fi
+
+# 3. Check if there are staged changes to commit
+if git diff --cached --quiet; then
+  exit 0
+fi
+
+# 4. Determine bump type (default: patch)
+BUMP_TYPE="${BUMP:-patch}"
+
+# 5. Run auto-version script and stage updated version files
+node scripts/auto-version.js "$BUMP_TYPE" --stage
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+  echo "❌ [SkillOS Version Hook] Failed to update version." >&2
+  exit $STATUS
+fi
+
+exit 0
